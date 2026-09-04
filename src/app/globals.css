@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Roll Call design tokens. Light is the base; dark redefines only the tokens. */
+:root {
+  --ground: #f5f6f2;
+  --ground-2: #ebeee6;
+  --panel: #ffffff;
+  --ink: #14201b;
+  --ink-2: #3e4a44;
+  --ink-3: #6e7a73;
+  --line: #d5dad2;
+  --line-2: #e6e9e2;
+  --pitch: #1e8a4c;
+  --pitch-ink: #ffffff;
+  --pitch-soft: #ddefe3;
+  --pitch-deep: #146238;
+  --card: #e5a800;
+  --card-soft: #fbf0c9;
+  --card-ink: #5c4300;
+  --red: #c8412b;
+  --red-soft: #f8ddd6;
+  --focus: #1e8a4c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0f1512;
+    --ground-2: #161e1a;
+    --panel: #141c18;
+    --ink: #eef2ec;
+    --ink-2: #bac5bd;
+    --ink-3: #8a968e;
+    --line: #2a352e;
+    --line-2: #1f2924;
+    --pitch: #3db86e;
+    --pitch-ink: #0b130e;
+    --pitch-soft: #173224;
+    --pitch-deep: #2c9a58;
+    --card: #f1bc1e;
+    --card-soft: #3a3010;
+    --card-ink: #f1bc1e;
+    --red: #e8604a;
+    --red-soft: #3d1d17;
+    --focus: #3db86e;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-ground-2: var(--ground-2);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-pitch: var(--pitch);
+  --color-pitch-ink: var(--pitch-ink);
+  --color-pitch-soft: var(--pitch-soft);
+  --color-pitch-deep: var(--pitch-deep);
+  --color-card: var(--card);
+  --color-card-soft: var(--card-soft);
+  --color-card-ink: var(--card-ink);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --font-display: var(--font-display), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+html {
+  background: var(--ground);
+}
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  text-wrap: balance;
+  line-height: 1;
+  letter-spacing: 0.005em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input, select, textarea {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: inherit;
+  width: 100%;
+  min-height: 44px;
+}
+input[type="checkbox"], input[type="radio"] {
+  width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--pitch);
+}
+::placeholder { color: var(--ink-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Utility: keep long strings from breaking layout */
+.wrap-anywhere { overflow-wrap: anywhere; }
