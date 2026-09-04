@@ -1,6 +1,7 @@
 "use server";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -8,11 +9,8 @@ import { getDb, schema } from "@/db/client";
 import { endSession, getCurrentUser, isValidEmail, normaliseEmail, startSession } from "@/lib/auth";
 import { sendLoginCode } from "@/lib/email";
 import { newId, hueFrom } from "@/lib/ids";
+import { safeNext } from "@/lib/access";
 import { act, str, uiError, type ActionState } from "./shared";
-
-function safeNext(next: string): string {
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/home";
-}
 
 export async function requestCode(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const email = normaliseEmail(str(fd, "email"));
@@ -20,16 +18,26 @@ export async function requestCode(_prev: ActionState, fd: FormData): Promise<Act
   const r = await act(async () => {
     if (!isValidEmail(email)) uiError("That email doesn't look right.");
     const db = await getDb();
-    const code = String(Math.floor(100000 + Math.random() * 900000));
     const now = new Date();
+    // Throttle: at most three live codes per address. Stops inbox flooding and keeps the guess space at one code.
+    const live = await db
+      .select({ id: schema.loginCodes.id, createdAt: schema.loginCodes.createdAt })
+      .from(schema.loginCodes)
+      .where(and(eq(schema.loginCodes.email, email), isNull(schema.loginCodes.usedAt), gt(schema.loginCodes.expiresAt, now)));
+    if (live.length >= 3) uiError("We've sent a few codes already. Check your inbox, or try again in ten minutes.");
+    // Any earlier code stops working the moment a new one is issued.
+    for (const l of live) await db.update(schema.loginCodes).set({ usedAt: now }).where(eq(schema.loginCodes.id, l.id));
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     await db.insert(schema.loginCodes).values({
       id: newId(),
       email,
       code,
+      attempts: 0,
       createdAt: now,
       expiresAt: new Date(now.getTime() + 10 * 60_000),
     });
-    await sendLoginCode(email, code);
+    const sent = await sendLoginCode(email, code);
+    if (!sent.delivered && !sent.dev) uiError("We couldn't send the email just now. Try again in a minute.");
   });
   if (r.error) return r;
   redirect(`/signin/verify?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
@@ -41,15 +49,25 @@ export async function verifyCode(_prev: ActionState, fd: FormData): Promise<Acti
   const next = safeNext(str(fd, "next") || "/home");
   const r = await act(async () => {
     const db = await getDb();
-    const row = (
-      await db
-        .select()
-        .from(schema.loginCodes)
-        .where(and(eq(schema.loginCodes.email, email), eq(schema.loginCodes.code, code), isNull(schema.loginCodes.usedAt), gt(schema.loginCodes.expiresAt, new Date())))
-        .limit(1)
-    )[0];
-    if (!row) uiError("That code isn't right or has expired.");
-    await db.update(schema.loginCodes).set({ usedAt: new Date() }).where(eq(schema.loginCodes.id, row.id));
+    const now = new Date();
+    const candidates = await db
+      .select()
+      .from(schema.loginCodes)
+      .where(and(eq(schema.loginCodes.email, email), isNull(schema.loginCodes.usedAt), gt(schema.loginCodes.expiresAt, now)));
+    const row = candidates.find((c) => c.code === code);
+    if (!row) {
+      // Count the miss against every live code; five misses burns them.
+      for (const c of candidates) {
+        const attempts = c.attempts + 1;
+        await db
+          .update(schema.loginCodes)
+          .set({ attempts, usedAt: attempts >= 5 ? now : null })
+          .where(eq(schema.loginCodes.id, c.id));
+      }
+      uiError(candidates.some((c) => c.attempts + 1 >= 5) ? "Too many tries. Request a new code." : "That code isn't right or has expired.");
+    }
+    await db.update(schema.loginCodes).set({ usedAt: now }).where(eq(schema.loginCodes.id, row.id));
+    void sql;
 
     const existing = (await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1))[0];
     const current = await getCurrentUser();

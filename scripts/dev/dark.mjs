@@ -1,0 +1,15 @@
+import { chromium } from "@playwright/test";
+const out = "/tmp/claude-0/-home-user-Remoovals/9aaf5bb5-a8d7-505a-9eb5-464ae059be3c/scratchpad/shots";
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2, colorScheme: "dark" });
+await ctx.addCookies([{ name: "rc_session", value: "demo-organiser-session-SfUTvqPzRvR1oPd412cAW0m7", domain: "localhost", path: "/" }]);
+const p = await ctx.newPage();
+await p.goto("http://localhost:3200/crew/tuesday-fc", { waitUntil: "networkidle" });
+await p.screenshot({ path: out + "/dark-home.png" });
+await p.goto("http://localhost:3200/crew/tuesday-fc/table", { waitUntil: "networkidle" });
+await p.screenshot({ path: out + "/dark-table.png" });
+const d = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+const dp = await d.newPage();
+await dp.goto("http://localhost:3200/crew/tuesday-fc", { waitUntil: "networkidle" });
+await dp.screenshot({ path: out + "/desktop-home.png" });
+await browser.close();

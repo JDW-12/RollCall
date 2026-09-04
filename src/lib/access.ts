@@ -29,16 +29,19 @@ export async function findMembership(crewId: string, userId: string): Promise<sc
   return rows[0] ?? null;
 }
 
-/** For pages: redirects to sign-in or the crew's join page when the viewer isn't a member. */
+/** For pages: redirects to sign-in when signed out; non-members get a 404. */
 export async function requireCrewPage(slug: string): Promise<CrewContext> {
   const crew = await findCrewBySlug(slug);
   if (!crew) notFound();
   const user = await getCurrentUser();
   if (!user) redirect(`/signin?next=/crew/${slug}`);
   const membership = await findMembership(crew.id, user.id);
-  if (!membership) redirect(`/join/${crew.inviteToken}`);
+  // Non-members get a 404, never the invite link: slugs are guessable, invite tokens must not be.
+  if (!membership) notFound();
   return { user, crew, membership, isOrganiser: membership.role === "organiser" };
 }
+
+export { safeNext } from "./redirects";
 
 /** For actions: throws instead of redirecting. */
 export async function requireCrewAction(crewId: string, opts: { organiser?: boolean } = {}): Promise<CrewContext> {

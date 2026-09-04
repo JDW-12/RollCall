@@ -13,10 +13,10 @@ export function RsvpButtons({ sessionId, mine, inVerb, userId, compact = false }
       {userId ? <input type="hidden" name="userId" value={userId} /> : null}
       <div className={cls("grid gap-2", compact ? "grid-cols-2" : "grid-cols-2")}>
         <SubmitButton name="intent" value="in" variant={mine === "in" || mine === "reserve" ? "secondary" : "primary"} className={compact ? "min-h-9 px-3 text-sm" : "min-h-12 text-base"} pendingText="…">
-          {mine === "in" ? "You're in" : mine === "reserve" ? "On reserves" : inVerb}
+          {userId ? (mine === "in" ? "In" : mine === "reserve" ? "Reserve" : "Mark in") : mine === "in" ? "You're in" : mine === "reserve" ? "On reserves" : inVerb}
         </SubmitButton>
         <SubmitButton name="intent" value="out" variant={mine === "out" ? "secondary" : "ghost"} className={cls(compact ? "min-h-9 px-3 text-sm" : "min-h-12 text-base", mine !== "out" && "border border-line")} pendingText="…">
-          {mine === "out" ? "You're out" : "Can't make it"}
+          {userId ? (mine === "out" ? "Out" : "Mark out") : mine === "out" ? "You're out" : "Can't make it"}
         </SubmitButton>
       </div>
       {state.error ? <Notice tone="bad">{state.error}</Notice> : state.message ? <Notice tone="warn">{state.message}</Notice> : null}

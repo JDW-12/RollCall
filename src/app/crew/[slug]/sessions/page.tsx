@@ -23,14 +23,14 @@ export default async function SessionsPage({ params }: { params: Promise<{ slug:
         <h2 className="text-xl font-bold uppercase text-ink-2">Upcoming</h2>
         {upcoming.length === 0 ? <EmptyState title="Nothing upcoming" action={isOrganiser ? <LinkButton href={`/crew/${crew.slug}/sessions/new`}>Pin a session</LinkButton> : undefined} /> : null}
         {upcoming.map((s) => (
-          <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} />
+          <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} organiser={isOrganiser} />
         ))}
       </section>
       {past.length ? (
         <section className="flex flex-col gap-2 mt-8">
-          <h2 className="text-xl font-bold uppercase text-ink-2">Played</h2>
+          <h2 className="text-xl font-bold uppercase text-ink-2">Past</h2>
           {past.map((s) => (
-            <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} />
+            <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} organiser={isOrganiser} />
           ))}
         </section>
       ) : null}

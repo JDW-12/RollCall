@@ -18,7 +18,7 @@ export function toRows(rsvps: Rsvp[]) {
   }));
 }
 
-export function SessionCard({ session, rsvps, slug, myId, emphasis = false }: { session: Session; rsvps: Rsvp[]; slug: string; myId: string; emphasis?: boolean }) {
+export function SessionCard({ session, rsvps, slug, myId, emphasis = false, organiser = false }: { session: Session; rsvps: Rsvp[]; slug: string; myId: string; emphasis?: boolean; organiser?: boolean }) {
   const sport = sportOf(session.sport);
   const s = summarise(toRows(rsvps), session.capacity);
   const mine = rsvps.find((r) => r.userId === myId)?.status;
@@ -35,7 +35,7 @@ export function SessionCard({ session, rsvps, slug, myId, emphasis = false }: { 
           <div className="display text-2xl font-bold uppercase leading-tight truncate mt-0.5">{session.title}</div>
           <div className="text-sm text-ink-2 truncate">
             {session.venueName || sport.label}
-            {session.costPence > 0 ? ` · ${pounds(share)} ${session.costMode === "per_head" ? "each" : "each so far"}` : " · Free"}
+            {session.costPence > 0 ? (session.costMode === "per_head" ? ` · ${pounds(share)} each` : s.in === 0 ? ` · ${pounds(session.costPence)} to split` : ` · ${pounds(share)} each so far`) : " · Free"}
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -56,7 +56,7 @@ export function SessionCard({ session, rsvps, slug, myId, emphasis = false }: { 
           {mine === "in" ? <Pill tone="good">You&apos;re in</Pill> : mine === "reserve" ? <Pill tone="warn">You&apos;re reserve</Pill> : mine === "out" ? <Pill>You&apos;re out</Pill> : <Pill tone="warn">Not answered</Pill>}
           {s.reserve > 0 ? <Pill>{s.reserve} reserve</Pill> : null}
           {s.full ? <Pill tone="ink">Full</Pill> : <Pill tone="good">{s.spotsLeft} spots left</Pill>}
-          {past ? <Pill tone="warn">Needs confirming</Pill> : null}
+          {past ? <Pill tone="warn">{organiser ? "Needs confirming" : "Awaiting result"}</Pill> : null}
         </div>
       ) : null}
     </Link>

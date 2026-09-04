@@ -7,9 +7,9 @@ import { Field, Panel, Pill } from "@/components/ui";
 import { setRaceResult, setupPredictor, submitPrediction } from "@/lib/actions/games";
 import { fmtDateTime } from "@/lib/format";
 
-export function PredictorPanel({ sessionId, game, entries, members, isOrganiser, myId }: { sessionId: string; game?: Game; entries: GameEntry[]; members: Member[]; isOrganiser: boolean; myId: string }) {
+export function PredictorPanel({ sessionId, game, entries, members, isOrganiser, myId, locksAt }: { sessionId: string; game?: Game; entries: GameEntry[]; members: Member[]; isOrganiser: boolean; myId: string; locksAt: number }) {
   const data = game ? (JSON.parse(game.data) as PredictorGame) : null;
-  const locked = data ? nowMs() >= data.locksAt : false;
+  const locked = data ? nowMs() >= locksAt : false;
   const mine = entries.find((e) => e.userId === myId);
   const myPick = mine ? (JSON.parse(mine.data) as Prediction) : null;
   const name = (id: string) => members.find((m) => m.id === id)?.name ?? "?";
@@ -70,7 +70,7 @@ export function PredictorPanel({ sessionId, game, entries, members, isOrganiser,
             </select>
           </Field>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-ink-3">Locks at {fmtDateTime(new Date(data.locksAt))}</span>
+            <span className="text-xs text-ink-3">Locks at {fmtDateTime(new Date(locksAt))}</span>
             <SubmitButton pendingText="Locking…">{myPick ? "Update picks" : "Lock in"}</SubmitButton>
           </div>
         </ActionForm>

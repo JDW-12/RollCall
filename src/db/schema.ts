@@ -44,6 +44,8 @@ export const loginCodes = sqliteTable("login_codes", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
   code: text("code").notNull(),
+  /** Failed verification attempts. The code is burned after a handful. */
+  attempts: integer("attempts").notNull().default(0),
   expiresAt: ts("expires_at").notNull(),
   usedAt: ts("used_at"),
   createdAt: ts("created_at").notNull(),

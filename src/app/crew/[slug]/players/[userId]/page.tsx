@@ -9,10 +9,12 @@ import { PlayerCard } from "@/components/player-card";
 import { ShareButtons } from "@/components/share";
 import { PageTitle, Panel, Stat } from "@/components/ui";
 import { pounds } from "@/lib/format";
+import { getUser } from "@/lib/queries";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; userId: string }> }): Promise<Metadata> {
   const { userId } = await params;
-  return { title: `Player ${userId.slice(0, 4)}` };
+  const u = await getUser(userId);
+  return { title: u?.name ?? "Player" };
 }
 
 export default async function PlayerPage({ params }: { params: Promise<{ slug: string; userId: string }> }) {
@@ -32,7 +34,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
     <CrewShell crew={crew} user={user} active="table">
       <PageTitle eyebrow={`#${rank} in ${crew.name}`} title={m.name} />
       <div className="grid gap-4 sm:grid-cols-[300px_1fr] items-start">
-        <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} votes={row.votes} />
+        <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} points={row.points} />
         <div className="flex flex-col gap-3">
           <Panel className="p-4 grid grid-cols-2 gap-4">
             <Stat label="Played" value={row.played} />

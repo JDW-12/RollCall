@@ -275,7 +275,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
           {sport.games.includes("teams") ? <TeamsPanel sessionId={session.id} game={game("teams")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
           {sport.games.includes("americano") ? <AmericanoPanel sessionId={session.id} game={game("americano")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
           {sport.games.includes("stableford") ? <StablefordPanel sessionId={session.id} game={game("stableford")} members={members} isOrganiser={isOrganiser} playerIds={inRows.map((r) => r.userId)} myId={user.id} /> : null}
-          {sport.games.includes("predictor") ? <PredictorPanel sessionId={session.id} game={game("predictor")} entries={entries} members={members} isOrganiser={isOrganiser} myId={user.id} /> : null}
+          {sport.games.includes("predictor") ? <PredictorPanel sessionId={session.id} game={game("predictor")} entries={entries} members={members} isOrganiser={isOrganiser} myId={user.id} locksAt={session.startsAt.getTime()} /> : null}
         </div>
       ) : null}
 

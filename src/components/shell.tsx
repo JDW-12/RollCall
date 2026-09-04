@@ -4,6 +4,7 @@ import type { Crew, User } from "@/db/schema";
 import { sportOf } from "@/domain/sports";
 import { Avatar } from "./avatar";
 import { cls } from "./ui";
+import { Wordmark } from "./logo";
 
 const tabs = [
   { key: "", label: "Home" },
@@ -61,13 +62,14 @@ export function CrewShell({ crew, user, active, children }: { crew: Crew; user: 
   );
 }
 
-export function PlainShell({ children, user }: { children: ReactNode; user?: User | null }) {
+export function PlainShell({ children, user, wide = false }: { children: ReactNode; user?: User | null; wide?: boolean }) {
+  const width = wide ? "max-w-6xl" : "max-w-3xl";
   return (
     <div className="flex flex-col min-h-full">
       <header className="border-b border-line">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="display font-extrabold uppercase text-2xl tracking-tight">
-            Roll Call
+        <div className={cls(width, "mx-auto px-4 h-14 flex items-center justify-between")}>
+          <Link href="/" aria-label="Roll Call home">
+            <Wordmark size={26} />
           </Link>
           {user ? (
             <Link href="/home" className="flex items-center gap-2 text-sm font-semibold">
@@ -81,7 +83,7 @@ export function PlainShell({ children, user }: { children: ReactNode; user?: Use
           )}
         </div>
       </header>
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6">{children}</main>
+      <main className={cls("flex-1 w-full mx-auto px-4 py-6", width)}>{children}</main>
     </div>
   );
 }

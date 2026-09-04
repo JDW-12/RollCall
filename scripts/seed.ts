@@ -56,8 +56,8 @@ async function main() {
 
   // ---- Tuesday FC (football) ----
   const crewId = newId();
-  // Anchor the season to real Tuesdays at 20:00 London time, 14 weeks back from the most recent Tuesday.
-  const seasonStart = lastTuesdayAt20(now, 14);
+  // Anchor the season to real Tuesdays at 20:00 London time: 14 played weeks, then week 15 is the coming Tuesday.
+  const seasonStart = lastTuesdayAt20(now, 13);
   await db.insert(schema.crews).values({
     id: crewId,
     slug: "tuesday-fc",

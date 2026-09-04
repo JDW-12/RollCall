@@ -8,6 +8,13 @@
       "when": 1788544827546,
       "tag": "0000_little_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788551584492,
+      "tag": "0001_organic_warstar",
+      "breakpoints": true
     }
   ]
 }

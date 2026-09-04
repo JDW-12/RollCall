@@ -65,7 +65,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
         </div>
         {next ? (
           <>
-            <SessionCard session={next} rsvps={rsvps.filter((r) => r.sessionId === next.id)} slug={crew.slug} myId={user.id} emphasis />
+            <SessionCard session={next} rsvps={rsvps.filter((r) => r.sessionId === next.id)} slug={crew.slug} myId={user.id} emphasis organiser={isOrganiser} />
             {next.status === "open" && next.startsAt.getTime() > nowMs() ? (
               <RsvpButtons sessionId={next.id} mine={rsvps.find((r) => r.sessionId === next.id && r.userId === user.id)?.status ?? null} inVerb={sportOf(next.sport).inVerb} />
             ) : null}
@@ -81,7 +81,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
         {upcoming.length ? (
           <div className="grid gap-2">
             {upcoming.map((s) => (
-              <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} />
+              <SessionCard key={s.id} session={s} rsvps={rsvps.filter((r) => r.sessionId === s.id)} slug={crew.slug} myId={user.id} organiser={isOrganiser} />
             ))}
           </div>
         ) : null}

@@ -4,36 +4,42 @@ import { SPORTS } from "@/domain/sports";
 import { PlainShell } from "@/components/shell";
 import { LinkButton, Panel, Pill } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
+import { ChatPreview, HeroCards } from "@/components/hero-cards";
 
 export default async function Landing() {
   const user = await getCurrentUser();
   return (
-    <PlainShell user={user}>
-      <section className="pt-6 pb-10 flex flex-col gap-6">
-        <div className="eyebrow">For the crew · London first · Football, padel, golf, gym, race weekends</div>
-        <h1 className="text-[64px] sm:text-[96px] font-extrabold uppercase leading-[0.9] tracking-tight">
-          Who&apos;s actually
-          <br />
-          turning up?
-        </h1>
-        <p className="text-lg text-ink-2 max-w-[52ch]">
-          Roll Call is the app for your crew, not your sport. Pin the session, everyone taps in from the group chat, the reserve list fills the gap when
-          someone drops, and turning up becomes a stat.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <LinkButton href="/start" className="text-base px-6 min-h-12">
-            Start a crew
-          </LinkButton>
-          <LinkButton href="/signin" variant="secondary" className="text-base px-6 min-h-12">
-            I&apos;ve got an invite
-          </LinkButton>
+    <PlainShell user={user} wide>
+      <section className="pt-6 pb-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_560px] lg:items-center">
+        <div className="flex flex-col gap-6">
+          <div className="eyebrow">For the crew · London first · Football, padel, golf, gym, race weekends</div>
+          <h1 className="text-[64px] sm:text-[84px] font-extrabold uppercase leading-[0.88] tracking-tight">
+            Who&apos;s actually
+            <br />
+            turning up?
+          </h1>
+          <p className="text-lg text-ink-2 max-w-[48ch]">
+            Roll Call is the app for your crew, not your sport. Pin the session, everyone taps in from the group chat, the reserve list fills the gap
+            when someone drops, and turning up becomes a stat.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <LinkButton href="/start" className="text-base px-6 min-h-12">
+              Start a crew
+            </LinkButton>
+            <LinkButton href="/signin" variant="secondary" className="text-base px-6 min-h-12">
+              I&apos;ve got an invite
+            </LinkButton>
+          </div>
+          <p className="text-sm text-ink-3">Free for crews. Nobody has to install anything to tap in.</p>
         </div>
-        <p className="text-sm text-ink-3">Free for crews. Nobody has to install anything to tap in.</p>
+        <HeroCards />
       </section>
 
-      <Demo />
+      <div className="max-w-3xl">
+        <Demo />
+      </div>
 
-      <section className="py-10 grid gap-4 sm:grid-cols-3">
+      <section className="py-10 grid gap-6 sm:grid-cols-3 max-w-4xl">
         {[
           ["Pin it", "Venue, time, cost, spots, deadline. Takes less time than typing it into WhatsApp."],
           ["Tap in", "Mates tap in from the link. Full? They're on the reserve list and get promoted when someone drops."],
@@ -61,6 +67,18 @@ export default async function Landing() {
         </div>
       </section>
 
+      <section className="py-10 border-t border-line grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div className="flex flex-col gap-3">
+          <div className="eyebrow">Growth loop</div>
+          <h2 className="text-4xl font-bold uppercase">The card is the ad.</h2>
+          <p className="text-ink-2 max-w-[50ch]">
+            Every session link previews as a card in WhatsApp: who&apos;s in, spots left, kick-off. After the game it shows who turned up and the
+            player of the match. Drop it back into the group and the next crew finds us.
+          </p>
+        </div>
+        <ChatPreview />
+      </section>
+
       <section className="py-10 border-t border-line grid gap-6 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-bold uppercase">No subscriptions. No hidden fees.</h2>
@@ -70,10 +88,10 @@ export default async function Landing() {
           </p>
         </div>
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-bold uppercase">The card is the ad.</h2>
+          <h2 className="text-3xl font-bold uppercase">Late drops still pay.</h2>
           <p className="text-ink-2">
-            Every session makes a recap card and every player gets a peer-rated card. Drop them straight back into the group. That&apos;s how the next
-            crew finds us.
+            Drop out inside the crew&apos;s window and your share stands. Reserves get promoted automatically. It&apos;s the rule every crew already
+            wants and nobody wants to enforce by hand.
           </p>
         </div>
       </section>

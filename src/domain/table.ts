@@ -154,12 +154,14 @@ export function computeTable(input: TableInput): TableRow[] {
         row.history.push("missed");
         continue;
       }
-      if (!r || r.status !== "in") {
+      const confirmed = att.get(row.userId);
+      // Expected if they held a spot, or if the organiser recorded them (a walk-on who turned up).
+      if ((!r || r.status !== "in") && confirmed === undefined) {
         row.history.push("skip");
         continue;
       }
       row.expected++;
-      const attended = att.get(row.userId) ?? true;
+      const attended = confirmed ?? true;
       if (!attended) {
         row.noShows++;
         row.points += POINTS.noShow;

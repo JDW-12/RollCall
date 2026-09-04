@@ -4,7 +4,7 @@ const base = "http://localhost:3200";
 const out = "/tmp/claude-0/-home-user-Remoovals/9aaf5bb5-a8d7-505a-9eb5-464ae059be3c/scratchpad/shots";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2 });
-await ctx.addCookies([{ name: "rc_session", value: "demo-organiser-session-5QfTUwdvIlJX9QQeVWklUFm2", domain: "localhost", path: "/" }]);
+await ctx.addCookies([{ name: "rc_session", value: "demo-organiser-session-SfUTvqPzRvR1oPd412cAW0m7", domain: "localhost", path: "/" }]);
 const page = await ctx.newPage();
 const shots = [
   ["landing", "/", false],

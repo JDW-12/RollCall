@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -11,8 +11,11 @@ import { fromLocalInput, parsePounds } from "@/lib/format";
 import { isSportKey, sportOf } from "@/domain/sports";
 import { applyCapacityChange, applyRsvp, playing, type RsvpRow } from "@/domain/rsvp";
 import { settleSession } from "@/domain/money";
-import { getSession, getSessionBundle } from "@/lib/queries";
-import { act, addFeed, str, uiError, type ActionState } from "./shared";
+import { getSession, getSessionBundle, listMembers } from "@/lib/queries";
+import { act, addFeed, quiet, str, uiError, type ActionState } from "./shared";
+import type { Db } from "@/db/client";
+
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 const sessionSchema = z.object({
   sport: z.string().refine(isSportKey, "Pick a sport."),
@@ -62,7 +65,7 @@ export async function createSession(_prev: ActionState, fd: FormData): Promise<A
     const now = new Date();
     await db.insert(schema.sessions).values({ id, crewId: crew.id, ...input, status: "open", createdBy: user.id, createdAt: now });
     // The organiser is in by default. They pinned it, they're playing.
-    if (str(fd, "organiserIn") !== "no") {
+    if (str(fd, "organiserIn") === "yes") {
       await db.insert(schema.rsvps).values({ id: newId(), sessionId: id, userId: user.id, status: "in", queuedAt: now, respondedAt: now });
     }
     await addFeed(crew.id, id, "session_pinned", { by: user.id, title: input.title, startsAt: input.startsAt.getTime() });
@@ -79,16 +82,19 @@ export async function updateSession(_prev: ActionState, fd: FormData): Promise<A
     const session = await getSession(sessionId);
     if (!session) uiError("That session doesn't exist any more.");
     const { crew } = await requireCrewAction(session.crewId, { organiser: true });
+    if (session.status === "cancelled") uiError("This session was cancelled.");
     if (session.status !== "open") uiError("This one has already been played.");
     const input = parseSessionForm(fd);
     const db = await getDb();
-    await db.update(schema.sessions).set(input).where(eq(schema.sessions.id, session.id));
-    if (input.capacity !== session.capacity) {
-      const rows = await db.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
+    const promoted = await db.transaction(async (tx) => {
+      await tx.update(schema.sessions).set(input).where(eq(schema.sessions.id, session.id));
+      if (input.capacity === session.capacity) return [] as string[];
+      const rows = await tx.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
       const res = applyCapacityChange(rows.map(toRow), input.capacity, Date.now());
-      await persistRsvps(session.id, rows, res.rows);
-      for (const c of res.changes) await addFeed(crew.id, session.id, "promoted", { userId: c.userId });
-    }
+      await persistRsvps(tx, session.id, rows, res.rows);
+      return res.changes.map((c) => c.userId);
+    }, { behavior: "immediate" });
+    for (const userId of promoted) await addFeed(crew.id, session.id, "promoted", { userId });
     revalidatePath(`/crew/${crew.slug}`, "layout");
     target = `/crew/${crew.slug}/s/${session.id}`;
   });
@@ -97,15 +103,21 @@ export async function updateSession(_prev: ActionState, fd: FormData): Promise<A
 }
 
 export async function cancelSession(fd: FormData): Promise<void> {
-  const sessionId = str(fd, "sessionId");
-  const session = await getSession(sessionId);
-  if (!session) return;
-  const { crew, user } = await requireCrewAction(session.crewId, { organiser: true });
-  const db = await getDb();
-  await db.update(schema.sessions).set({ status: "cancelled" }).where(eq(schema.sessions.id, session.id));
-  await addFeed(crew.id, session.id, "session_cancelled", { by: user.id, title: session.title });
-  revalidatePath(`/crew/${crew.slug}`, "layout");
-  redirect(`/crew/${crew.slug}`);
+  let target = "";
+  await quiet(async () => {
+    const sessionId = str(fd, "sessionId");
+    const session = await getSession(sessionId);
+    if (!session) return;
+    const { crew, user } = await requireCrewAction(session.crewId, { organiser: true });
+    // Only an open session can be cancelled. A played one has charges attached; reopen and fix attendance instead.
+    if (session.status !== "open") uiError("Only an open session can be cancelled.");
+    const db = await getDb();
+    await db.update(schema.sessions).set({ status: "cancelled" }).where(eq(schema.sessions.id, session.id));
+    await addFeed(crew.id, session.id, "session_cancelled", { by: user.id, title: session.title });
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    target = `/crew/${crew.slug}`;
+  });
+  if (target) redirect(target);
 }
 
 function toRow(r: schema.Rsvp): RsvpRow {
@@ -119,8 +131,7 @@ function toRow(r: schema.Rsvp): RsvpRow {
   };
 }
 
-async function persistRsvps(sessionId: string, before: schema.Rsvp[], after: RsvpRow[]) {
-  const db = await getDb();
+async function persistRsvps(db: Tx, sessionId: string, before: schema.Rsvp[], after: RsvpRow[]) {
   const byUser = new Map(before.map((r) => [r.userId, r]));
   for (const row of after) {
     const prev = byUser.get(row.userId);
@@ -154,29 +165,34 @@ export async function rsvp(_prev: ActionState, fd: FormData): Promise<ActionStat
     const ctx = await requireCrewAction(session.crewId);
     const onBehalf = str(fd, "userId");
     const targetUser = onBehalf && ctx.isOrganiser ? onBehalf : ctx.user.id;
+    if (targetUser !== ctx.user.id) {
+      const members = await listMembers(ctx.crew.id);
+      if (!members.some((m) => m.id === targetUser)) uiError("That person isn't in the crew.");
+    }
     const db = await getDb();
-    const rows = await db.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
-    const res = applyRsvp(
-      {
-        capacity: session.capacity,
-        startsAt: session.startsAt.getTime(),
-        rsvpDeadlineAt: session.rsvpDeadlineAt?.getTime() ?? null,
-        status: session.status,
-        lateDropHours: ctx.crew.lateDropHours,
-      },
-      rows.map(toRow),
-      targetUser,
-      intent,
-      Date.now(),
-    );
-    await persistRsvps(session.id, rows, res.rows);
+    const rules = {
+      capacity: session.capacity,
+      startsAt: session.startsAt.getTime(),
+      rsvpDeadlineAt: session.rsvpDeadlineAt?.getTime() ?? null,
+      status: session.status,
+      lateDropHours: ctx.crew.lateDropHours,
+    };
+    // One writer at a time: two taps for the last spot can't both win it.
+    const res = await db.transaction(async (tx) => {
+      const rows = await tx.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
+      const r = applyRsvp(rules, rows.map(toRow), targetUser, intent, Date.now());
+      await persistRsvps(tx, session.id, rows, r.rows);
+      return r;
+    }, { behavior: "immediate" });
     for (const c of res.changes) {
-      await addFeed(ctx.crew.id, session.id, c.type, { userId: c.userId, late: "late" in c ? c.late : undefined, title: session.title });
+      const kind = c.type === "joined" ? "joined_session" : c.type;
+      await addFeed(ctx.crew.id, session.id, kind, { userId: c.userId, late: "late" in c ? c.late : undefined, title: session.title });
     }
     revalidatePath(`/crew/${ctx.crew.slug}`, "layout");
     const mine = res.changes.find((c) => c.userId === targetUser);
-    if (mine?.type === "reserved") return { ok: true, message: "It's full, so you're on the reserve list. You'll get promoted if someone drops." };
-    if (mine?.type === "dropped" && mine.late) return { ok: true, message: "Noted. That's inside the late-drop window, so your share still stands." };
+    const self = targetUser === ctx.user.id;
+    if (mine?.type === "reserved") return { ok: true, message: self ? "It's full, so you're on the reserve list. You'll get promoted if someone drops." : "Full, so they're on the reserve list." };
+    if (mine?.type === "dropped" && mine.late) return { ok: true, message: self ? "Noted. That's inside the late-drop window, so your share still stands." : "Marked out. That's a late drop, so their share still stands." };
     return { ok: true };
   });
 }
@@ -196,50 +212,49 @@ export async function confirmPlayed(_prev: ActionState, fd: FormData): Promise<A
     if (session.status === "cancelled") uiError("This session was cancelled.");
     const db = await getDb();
     const now = new Date();
-    const inRows = playing(rsvps.map(toRow));
-    const attendedIds = new Set(fd.getAll("attended").map(String));
-    // Anyone the organiser ticks who wasn't "in" (a walk-on) gets an RSVP row so stats and money include them.
+    const memberIds = new Set((await listMembers(crew.id)).map((m) => m.id));
+    // Only crew members can be marked as having played.
+    const attendedIds = new Set(fd.getAll("attended").map(String).filter((id) => memberIds.has(id)));
+    const inRows = playing(rsvps.map(toRow)).filter((r) => memberIds.has(r.userId));
+    // Walk-ons: ticked but never held a spot. They get an attendance row only, so un-ticking them on a
+    // later "fix attendance" simply removes them rather than turning them into a no-show.
     const walkOns = [...attendedIds].filter((id) => !inRows.some((r) => r.userId === id));
-    for (const id of walkOns) {
-      const existing = rsvps.find((r) => r.userId === id);
-      if (existing) await db.update(schema.rsvps).set({ status: "in", lateDrop: false, droppedAt: null }).where(eq(schema.rsvps.id, existing.id));
-      else await db.insert(schema.rsvps).values({ id: newId(), sessionId: session.id, userId: id, status: "in", queuedAt: now, respondedAt: now });
-    }
     const expected = [...inRows.map((r) => r.userId), ...walkOns];
-
-    await db.delete(schema.attendance).where(eq(schema.attendance.sessionId, session.id));
-    if (expected.length) {
-      await db.insert(schema.attendance).values(
-        expected.map((userId) => ({ id: newId(), sessionId: session.id, userId, attended: attendedIds.has(userId), confirmedBy: user.id, confirmedAt: now })),
-      );
-    }
-
-    // Rebuild charges for this session (never touch payments).
-    await db.delete(schema.ledger).where(and(eq(schema.ledger.sessionId, session.id), eq(schema.ledger.kind, "charge")));
     const charges = settleSession({
       costMode: session.costMode,
       costPence: session.costPence,
       playing: expected,
       attended: new Map(expected.map((id) => [id, attendedIds.has(id)])),
-      lateDrops: rsvps.filter((r) => r.lateDrop).map((r) => r.userId),
+      lateDrops: rsvps.filter((r) => r.lateDrop && memberIds.has(r.userId)).map((r) => r.userId),
     });
-    if (charges.length) {
-      await db.insert(schema.ledger).values(
-        charges.map((c) => ({
-          id: newId(),
-          crewId: crew.id,
-          sessionId: session.id,
-          userId: c.userId,
-          kind: "charge" as const,
-          amountPence: c.amountPence,
-          reason: c.reason,
-          note: session.title,
-          createdBy: user.id,
-          createdAt: now,
-        })),
-      );
-    }
-    await db.update(schema.sessions).set({ status: "played", playedAt: now }).where(eq(schema.sessions.id, session.id));
+
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.attendance).where(eq(schema.attendance.sessionId, session.id));
+      if (expected.length) {
+        await tx.insert(schema.attendance).values(
+          expected.map((userId) => ({ id: newId(), sessionId: session.id, userId, attended: attendedIds.has(userId), confirmedBy: user.id, confirmedAt: now })),
+        );
+      }
+      // Rebuild this session's charges. Payments are never touched.
+      await tx.delete(schema.ledger).where(and(eq(schema.ledger.sessionId, session.id), eq(schema.ledger.kind, "charge")));
+      if (charges.length) {
+        await tx.insert(schema.ledger).values(
+          charges.map((c) => ({
+            id: newId(),
+            crewId: crew.id,
+            sessionId: session.id,
+            userId: c.userId,
+            kind: "charge" as const,
+            amountPence: c.amountPence,
+            reason: c.reason,
+            note: session.title,
+            createdBy: user.id,
+            createdAt: now,
+          })),
+        );
+      }
+      await tx.update(schema.sessions).set({ status: "played", playedAt: now }).where(eq(schema.sessions.id, session.id));
+    }, { behavior: "immediate" });
     await addFeed(crew.id, session.id, "session_played", {
       by: user.id,
       title: session.title,
@@ -268,8 +283,7 @@ export async function rate(_prev: ActionState, fd: FormData): Promise<ActionStat
     const cats = sportOf(session.sport).ratings;
     const db = await getDb();
     const now = new Date();
-    await db.delete(schema.ratings).where(and(eq(schema.ratings.sessionId, session.id), eq(schema.ratings.raterId, user.id)));
-    const values = [];
+    const values: (typeof schema.ratings.$inferInsert)[] = [];
     for (const c of cats) {
       const ratee = str(fd, `cat_${c.key}`);
       if (!ratee) continue;
@@ -277,7 +291,10 @@ export async function rate(_prev: ActionState, fd: FormData): Promise<ActionStat
       if (ratee === user.id && c.points > 0) uiError("Nice try. You can't vote for yourself.");
       values.push({ id: newId(), sessionId: session.id, raterId: user.id, category: c.key, rateeId: ratee, createdAt: now });
     }
-    if (values.length) await db.insert(schema.ratings).values(values);
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.ratings).where(and(eq(schema.ratings.sessionId, session.id), eq(schema.ratings.raterId, user.id)));
+      if (values.length) await tx.insert(schema.ratings).values(values);
+    }, { behavior: "immediate" });
     await addFeed(crew.id, session.id, "rated", { userId: user.id });
     revalidatePath(`/crew/${crew.slug}`, "layout");
     target = `/crew/${crew.slug}/s/${session.id}?rated=1`;
@@ -298,6 +315,10 @@ export async function recordPayment(_prev: ActionState, fd: FormData): Promise<A
     const { crew, user } = await requireCrewAction(crewId, { organiser: true });
     const userId = str(fd, "userId");
     const sessionId = str(fd, "sessionId") || null;
+    if (sessionId) {
+      const s = await getSession(sessionId);
+      if (!s || s.crewId !== crew.id) uiError("That session isn't in this crew.");
+    }
     const amountPence = parsePounds(str(fd, "amount"));
     if (amountPence === null) uiError("Amount should be pounds and pence.");
     const input = paymentSchema.parse({ amountPence, method: str(fd, "method") || "transfer" });
@@ -326,28 +347,29 @@ export async function recordPayment(_prev: ActionState, fd: FormData): Promise<A
 }
 
 export async function deleteLedgerEntry(fd: FormData): Promise<void> {
-  const crewId = str(fd, "crewId");
-  const id = str(fd, "entryId");
-  const { crew } = await requireCrewAction(crewId, { organiser: true });
-  const db = await getDb();
-  await db.delete(schema.ledger).where(and(eq(schema.ledger.id, id), eq(schema.ledger.crewId, crew.id), eq(schema.ledger.kind, "payment")));
-  revalidatePath(`/crew/${crew.slug}`, "layout");
+  await quiet(async () => {
+    const crewId = str(fd, "crewId");
+    const id = str(fd, "entryId");
+    const { crew } = await requireCrewAction(crewId, { organiser: true });
+    const db = await getDb();
+    await db.delete(schema.ledger).where(and(eq(schema.ledger.id, id), eq(schema.ledger.crewId, crew.id), eq(schema.ledger.kind, "payment")));
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+  });
 }
 
 /** Reopen a played session so attendance can be corrected. Charges get rebuilt on the next confirm. */
 export async function reopenSession(fd: FormData): Promise<void> {
-  const sessionId = str(fd, "sessionId");
-  const session = await getSession(sessionId);
-  if (!session) return;
-  const { crew } = await requireCrewAction(session.crewId, { organiser: true });
-  const db = await getDb();
-  await db.update(schema.sessions).set({ status: "open", playedAt: null }).where(eq(schema.sessions.id, session.id));
-  revalidatePath(`/crew/${crew.slug}`, "layout");
-  redirect(`/crew/${crew.slug}/s/${session.id}`);
-}
-
-export async function deleteRatingsForSessions(sessionIds: string[]): Promise<void> {
-  if (!sessionIds.length) return;
-  const db = await getDb();
-  await db.delete(schema.ratings).where(inArray(schema.ratings.sessionId, sessionIds));
+  let target = "";
+  await quiet(async () => {
+    const sessionId = str(fd, "sessionId");
+    const session = await getSession(sessionId);
+    if (!session) return;
+    const { crew } = await requireCrewAction(session.crewId, { organiser: true });
+    if (session.status !== "played") return;
+    const db = await getDb();
+    await db.update(schema.sessions).set({ status: "open", playedAt: null }).where(eq(schema.sessions.id, session.id));
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    target = `/crew/${crew.slug}/s/${session.id}`;
+  });
+  if (target) redirect(target);
 }

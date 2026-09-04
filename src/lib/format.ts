@@ -58,11 +58,12 @@ export function toLocalInput(d: Date): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: TZ,
   }).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+  const hour = String(Number(get("hour")) % 24).padStart(2, "0");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
 }
 
 /** Parse a datetime-local string as London local time into a UTC Date. */

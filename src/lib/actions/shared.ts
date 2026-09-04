@@ -25,6 +25,17 @@ export async function act(fn: () => Promise<ActionState | void>): Promise<Action
   }
 }
 
+/** For plain form actions that return nothing: swallow expected errors so a forged request can't crash the page. */
+export async function quiet(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    unstable_rethrow(e);
+    if (e instanceof AccessError || e instanceof RsvpError || (e instanceof Error && e.message.startsWith("UI:"))) return;
+    console.error(e);
+  }
+}
+
 export function uiError(message: string): never {
   throw new Error("UI:" + message);
 }

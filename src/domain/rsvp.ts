@@ -64,7 +64,8 @@ export function applyRsvp(
   now: number,
 ): RsvpResult {
   if (rules.status !== "open") throw new RsvpError("This one is closed.");
-  if (now >= rules.startsAt && intent === "in") throw new RsvpError("Kick-off has passed.");
+  // Nothing moves after kick-off. Who actually played is the organiser's call on the attendance screen.
+  if (now >= rules.startsAt) throw new RsvpError("Kick-off has passed.");
 
   const rows = current.map((r) => ({ ...r }));
   const changes: RsvpChange[] = [];

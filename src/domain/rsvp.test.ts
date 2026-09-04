@@ -73,9 +73,12 @@ describe("applyRsvp", () => {
     expect(res.rows).toEqual(rows);
   });
 
-  it("refuses when the session is not open or has started", () => {
+  it("refuses any change once the session is not open or has started", () => {
     expect(() => applyRsvp({ ...rules, status: "played" }, [], "a", "in", 1)).toThrow();
     expect(() => applyRsvp(rules, [], "a", "in", kickoff + 1)).toThrow();
+    // Dropping out after kick-off would promote a reserve into a game that has already happened.
+    const rows = [row("a", "in", 1), row("b", "reserve", 2)];
+    expect(() => applyRsvp(rules, rows, "a", "out", kickoff + 1)).toThrow();
   });
 
   it("promotes reserves when capacity grows, never demotes", () => {

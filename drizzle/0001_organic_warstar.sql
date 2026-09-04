@@ -1,0 +1,1 @@
+ALTER TABLE `login_codes` ADD `attempts` integer DEFAULT 0 NOT NULL;

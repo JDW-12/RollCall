@@ -21,8 +21,10 @@ export function Feed({ items, members, slug }: { items: FeedItem[]; members: Mem
           text = `${name(p.by)} pinned ${String(p.title ?? "a session")}.`;
           break;
         case "joined_session":
-        case "joined":
           text = `${name(p.userId)} is in.`;
+          break;
+        case "left":
+          text = `${name(p.userId)} left the crew.`;
           break;
         case "reserved":
           text = `${name(p.userId)} is on the reserve list.`;

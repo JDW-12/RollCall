@@ -65,6 +65,23 @@ describe("computeTable", () => {
     expect(by.newbie.card.turnsUp).toBe(50);
     expect(by.newbie.points).toBe(0);
   });
+  it("counts a confirmed walk-on as played even without an RSVP", () => {
+    const rows = computeTable({
+      memberIds: ["a", "w"],
+      sessions: [{ id: "s", startsAt: 1, status: "played" }],
+      rsvps: [{ sessionId: "s", userId: "a", status: "in", lateDrop: false }],
+      attendance: [
+        { sessionId: "s", userId: "a", attended: true },
+        { sessionId: "s", userId: "w", attended: true },
+      ],
+      ratings: [],
+      categories: cats,
+    });
+    const w = rows.find((r) => r.userId === "w")!;
+    expect(w.played).toBe(1);
+    expect(w.points).toBe(3);
+    expect(w.noShows).toBe(0);
+  });
   it("ignores open and cancelled sessions", () => {
     const rows = computeTable({
       memberIds: ["a"],

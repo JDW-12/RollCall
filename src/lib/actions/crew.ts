@@ -10,7 +10,7 @@ import { requireCrewAction } from "@/lib/access";
 import { hueFrom, newId, newToken, slugify } from "@/lib/ids";
 import { isSportKey } from "@/domain/sports";
 import { findCrewByInvite } from "@/lib/queries";
-import { act, addFeed, str, uiError, type ActionState } from "./shared";
+import { act, addFeed, quiet, str, uiError, type ActionState } from "./shared";
 
 const crewSchema = z.object({
   name: z.string().trim().min(2, "Give the crew a name.").max(40, "Keep the name under 40 letters."),
@@ -129,43 +129,68 @@ export async function updateCrew(_prev: ActionState, fd: FormData): Promise<Acti
 }
 
 export async function rotateInvite(fd: FormData): Promise<void> {
-  const crewId = str(fd, "crewId");
-  const { crew } = await requireCrewAction(crewId, { organiser: true });
+  await quiet(async () => {
+    const crewId = str(fd, "crewId");
+    const { crew } = await requireCrewAction(crewId, { organiser: true });
+    const db = await getDb();
+    await db.update(schema.crews).set({ inviteToken: newToken() }).where(eq(schema.crews.id, crew.id));
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+  });
+}
+
+async function organiserCount(crewId: string): Promise<number> {
   const db = await getDb();
-  await db.update(schema.crews).set({ inviteToken: newToken() }).where(eq(schema.crews.id, crew.id));
-  revalidatePath(`/crew/${crew.slug}`, "layout");
+  const rows = await db
+    .select({ id: schema.crewMembers.id })
+    .from(schema.crewMembers)
+    .where(and(eq(schema.crewMembers.crewId, crewId), eq(schema.crewMembers.role, "organiser")));
+  return rows.length;
 }
 
 export async function setMemberRole(fd: FormData): Promise<void> {
   const crewId = str(fd, "crewId");
   const userId = str(fd, "userId");
   const role = str(fd, "role") === "organiser" ? "organiser" : "member";
-  const { crew, user } = await requireCrewAction(crewId, { organiser: true });
-  if (userId === user.id && role === "member") {
-    // Don't let the last organiser demote themselves.
+  await quiet(async () => {
+    const { crew } = await requireCrewAction(crewId, { organiser: true });
     const db = await getDb();
-    const organisers = await db
-      .select({ id: schema.crewMembers.id })
-      .from(schema.crewMembers)
-      .where(and(eq(schema.crewMembers.crewId, crew.id), eq(schema.crewMembers.role, "organiser")));
-    if (organisers.length <= 1) return;
-  }
-  const db = await getDb();
-  await db
-    .update(schema.crewMembers)
-    .set({ role })
-    .where(and(eq(schema.crewMembers.crewId, crew.id), eq(schema.crewMembers.userId, userId)));
-  revalidatePath(`/crew/${crew.slug}`, "layout");
+    const target = (await db.select().from(schema.crewMembers).where(and(eq(schema.crewMembers.crewId, crew.id), eq(schema.crewMembers.userId, userId))).limit(1))[0];
+    if (!target) return;
+    // Never demote the last organiser, whoever is asking.
+    if (target.role === "organiser" && role === "member" && (await organiserCount(crew.id)) <= 1) return;
+    await db.update(schema.crewMembers).set({ role }).where(eq(schema.crewMembers.id, target.id));
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+  });
 }
 
 export async function removeMember(fd: FormData): Promise<void> {
   const crewId = str(fd, "crewId");
   const userId = str(fd, "userId");
-  const { crew, user, isOrganiser } = await requireCrewAction(crewId);
-  if (userId !== user.id && !isOrganiser) return;
-  const db = await getDb();
-  await db.delete(schema.crewMembers).where(and(eq(schema.crewMembers.crewId, crew.id), eq(schema.crewMembers.userId, userId)));
-  revalidatePath(`/crew/${crew.slug}`, "layout");
-  if (userId === user.id) redirect("/home");
+  let leftSelf = false;
+  await quiet(async () => {
+    const { crew, user, isOrganiser } = await requireCrewAction(crewId);
+    if (userId !== user.id && !isOrganiser) return;
+    const db = await getDb();
+    const target = (await db.select().from(schema.crewMembers).where(and(eq(schema.crewMembers.crewId, crew.id), eq(schema.crewMembers.userId, userId))).limit(1))[0];
+    if (!target) return;
+    // A crew must always keep an organiser.
+    if (target.role === "organiser" && (await organiserCount(crew.id)) <= 1) return;
+    await db.transaction(async (tx) => {
+      // Free any spots they hold on open sessions so headcounts and money stay honest. Not a late drop.
+      const open = await tx.select({ id: schema.sessions.id }).from(schema.sessions).where(and(eq(schema.sessions.crewId, crew.id), eq(schema.sessions.status, "open")));
+      for (const s of open) {
+        await tx.delete(schema.rsvps).where(and(eq(schema.rsvps.sessionId, s.id), eq(schema.rsvps.userId, userId), eq(schema.rsvps.status, "reserve")));
+        await tx
+          .update(schema.rsvps)
+          .set({ status: "out", lateDrop: false, droppedAt: null, respondedAt: new Date() })
+          .where(and(eq(schema.rsvps.sessionId, s.id), eq(schema.rsvps.userId, userId)));
+      }
+      await tx.delete(schema.crewMembers).where(eq(schema.crewMembers.id, target.id));
+    }, { behavior: "immediate" });
+    await addFeed(crew.id, null, "left", { userId });
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    leftSelf = userId === user.id;
+  });
+  if (leftSelf) redirect("/home");
 }
 

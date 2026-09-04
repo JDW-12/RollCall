@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { safeNext } from "@/lib/access";
 import { PlainShell } from "@/components/shell";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Field, PageTitle } from "@/components/ui";
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
   const user = await getCurrentUser();
-  if (user && user.email) redirect(next && next.startsWith("/") ? next : "/home");
+  if (user && user.email) redirect(safeNext(next));
   return (
     <PlainShell user={user}>
       <PageTitle eyebrow="No password" title={user ? "Add your email" : "Sign in"}>

@@ -3,12 +3,12 @@ import type { RatingCategory } from "@/domain/sports";
 import { initials } from "@/lib/format";
 
 /** FIFA-style card built from peer ratings and attendance. Rendered in-page; the OG route draws the same thing. */
-export function PlayerCard({ name, hue, crewName, sportLabel, card, rank, categories, votes }: { name: string; hue: number; crewName: string; sportLabel: string; card: CardStats; rank: number; categories: RatingCategory[]; votes: Record<string, number> }) {
+export function PlayerCard({ name, hue, crewName, sportLabel, card, rank, categories, points, tilt = 0 }: { name: string; hue: number; crewName: string; sportLabel: string; card: CardStats; rank: number; categories: RatingCategory[]; points: number; tilt?: number }) {
   const tier = card.overall >= 85 ? "Elite" : card.overall >= 72 ? "Regular" : card.overall >= 60 ? "Squad" : "Sick note";
   return (
     <div
-      className="rounded-md p-5 flex flex-col gap-4 text-[oklch(0.15_0.05_var(--h))]"
-      style={{ ["--h" as string]: hue, background: `linear-gradient(160deg, oklch(0.9 0.08 ${hue}) 0%, oklch(0.78 0.12 ${hue}) 100%)` }}
+      className="rounded-md p-5 flex flex-col gap-4 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.45)]"
+      style={{ color: `oklch(0.18 0.05 ${hue})`, background: `linear-gradient(160deg, oklch(0.9 0.08 ${hue}) 0%, oklch(0.76 0.13 ${hue}) 100%)`, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -34,7 +34,7 @@ export function PlayerCard({ name, hue, crewName, sportLabel, card, rank, catego
           [categories[0]?.stat ?? "MOT", card.votes],
           [categories[1]?.stat ?? "GRF", card.graft],
           ["STK", card.streak],
-          [categories[2]?.stat ?? "HWL", Math.min(99, 45 + (votes[categories[2]?.key ?? "howler"] ?? 0) * 9)],
+          ["PTS", Math.max(0, Math.min(99, points))],
         ].map(([k, v]) => (
           <div key={String(k)} className="flex items-baseline justify-between">
             <span className="font-mono text-[11px] tracking-[0.1em] opacity-80">{k}</span>

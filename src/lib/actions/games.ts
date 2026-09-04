@@ -59,7 +59,7 @@ export async function startAmericano(_prev: ActionState, fd: FormData): Promise<
     const { bundle, ctx } = await loadForGame(str(fd, "sessionId"));
     const inIds = bundle.rsvps.filter((r) => r.status === "in").map((r) => r.userId);
     const points = Number(str(fd, "pointsPerMatch")) || 16;
-    const rounds = Number(str(fd, "rounds")) || undefined;
+    const rounds = Math.max(1, Math.min(12, Number(str(fd, "rounds")) || 0)) || undefined;
     if (inIds.length < 4) uiError("An americano needs at least four players in.");
     const game = generateAmericano(inIds, { pointsPerMatch: points, rounds });
     await upsertGame(bundle.session.id, "americano", game);
@@ -147,7 +147,9 @@ export async function submitPrediction(_prev: ActionState, fd: FormData): Promis
     const game = bundle.games.find((g) => g.kind === "predictor");
     if (!game) uiError("The organiser hasn't opened predictions yet.");
     const data = JSON.parse(game.data) as PredictorGame;
-    if (Date.now() >= data.locksAt) uiError("Lights out. Predictions are locked.");
+    // Lock follows the session's start time, so moving the race moves the lock.
+    if (data.result) uiError("The result is in. Predictions are closed.");
+    if (Date.now() >= bundle.session.startsAt.getTime()) uiError("Lights out. Predictions are locked.");
     const podium: [string, string, string] = [str(fd, "p1"), str(fd, "p2"), str(fd, "p3")];
     if (podium.some((d) => !data.grid.includes(d))) uiError("Pick three drivers from the grid.");
     if (new Set(podium).size !== 3) uiError("Three different drivers, please.");
