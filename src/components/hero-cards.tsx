@@ -11,7 +11,7 @@ export function HeroCards() {
     { name: "Jonesy", hue: 330, card: { turnsUp: 51, form: 55, votes: 45, graft: 45, streak: 45, overall: 49 }, rank: 12, points: 4, tilt: 8 },
   ];
   return (
-    <div className="relative h-[430px] w-full max-w-[540px] mx-auto overflow-visible" aria-hidden="true">
+    <div className="relative h-[340px] sm:h-[430px] w-full max-w-[540px] mx-auto overflow-visible scale-[0.78] sm:scale-100 origin-top" aria-hidden="true">
       {cards.map((c, i) => (
         <div
           key={c.name}
