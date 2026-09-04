@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/env";
 import type { Metadata } from "next";
 import { requireCrewPage } from "@/lib/access";
 import { listMembers } from "@/lib/queries";
@@ -16,7 +17,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const { crew, user, isOrganiser } = await requireCrewPage(slug);
   const members = await listMembers(crew.id);
-  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/join/${crew.inviteToken}`;
+  const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   return (
     <CrewShell crew={crew} user={user} active="settings">
       <PageTitle eyebrow={`${members.length} members · since ${fmtDay(crew.createdAt)}`} title={crew.name} />

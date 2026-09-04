@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/env";
 import { nowMs } from "@/lib/clock";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -47,8 +48,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const now = nowMs();
   const started = session.startsAt.getTime() <= now;
   const finished = session.startsAt.getTime() + session.durationMin * 60_000 <= now;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const url = `${appUrl}/crew/${crew.slug}/s/${session.id}`;
+  const url = `${await appUrl()}/crew/${crew.slug}/s/${session.id}`;
   const share = previewShare(session.costMode, session.costPence, sum.in);
   const game = (kind: string) => games.find((g) => g.kind === kind);
   const attended = attendance.filter((a) => a.attended);

@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/env";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireCrewPage } from "@/lib/access";
@@ -28,8 +29,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   const sport = sportOf(crew.sport);
   const { balances } = await getCrewLedger(crew.id);
   const owed = balances.get(userId)?.owed ?? 0;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const url = `${appUrl}/crew/${crew.slug}/players/${userId}`;
+  const url = `${await appUrl()}/crew/${crew.slug}/players/${userId}`;
   return (
     <CrewShell crew={crew} user={user} active="table">
       <PageTitle eyebrow={`#${rank} in ${crew.name}`} title={m.name} />

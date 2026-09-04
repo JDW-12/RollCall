@@ -6,7 +6,13 @@ const display = Barlow_Condensed({ variable: "--font-display", subsets: ["latin"
 const sans = Instrument_Sans({ variable: "--font-sans", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 const mono = IBM_Plex_Mono({ variable: "--font-mono", subsets: ["latin"], weight: ["400", "500"] });
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const appUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_BRANCH_URL
+      ? `https://${process.env.VERCEL_BRANCH_URL}`
+      : "http://localhost:3000");
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),

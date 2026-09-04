@@ -1,3 +1,4 @@
+import { appUrl } from "@/lib/env";
 import { nowMs } from "@/lib/clock";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -26,7 +27,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
   const upcoming = all.filter((s) => s.status === "open" && s.id !== next?.id && s.startsAt.getTime() > nowMs()).slice(0, 3);
   const needsConfirm = all.filter((s) => s.status === "open" && s.startsAt.getTime() + s.durationMin * 60_000 < nowMs());
   const rsvps = await rsvpsFor([next?.id, ...upcoming.map((s) => s.id), ...needsConfirm.map((s) => s.id)].filter((x): x is string => !!x));
-  const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/join/${crew.inviteToken}`;
+  const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
   const top = table.rows.slice(0, 5);
 

@@ -13,8 +13,11 @@ declare global {
   var __rollcallDb: Cached | undefined;
 }
 
+const sandbox = !process.env.DATABASE_URL && !!process.env.VERCEL;
+
 function resolveUrl(): string {
-  const url = process.env.DATABASE_URL ?? "file:./data/rollcall.db";
+  // On Vercel with no database configured, run as a throwaway sandbox in /tmp (see src/lib/env.ts).
+  const url = process.env.DATABASE_URL ?? (sandbox ? "file:/tmp/rollcall-sandbox.db" : "file:./data/rollcall.db");
   if (url.startsWith("file:")) {
     const rel = url.slice("file:".length);
     const abs = path.isAbsolute(rel) ? rel : path.join(/*turbopackIgnore: true*/ process.cwd(), rel);
@@ -35,6 +38,10 @@ function create(): Cached {
     await migrate(db, {
       migrationsFolder: path.join(process.cwd(), "drizzle"),
     });
+    if (sandbox) {
+      const { seedDemo } = await import("@/lib/seed");
+      await seedDemo(db);
+    }
   })();
   return { client, db, ready };
 }
