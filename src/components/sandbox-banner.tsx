@@ -10,7 +10,7 @@ export function SandboxBanner() {
         <strong>Sandbox.</strong>
         <span>Demo data, resets when the server restarts. Try it as</span>
         <Link href="/demo" className="underline font-semibold">
-          Sam (organiser)
+          Josh (organiser)
         </Link>
         <Link href="/demo?as=member" className="underline font-semibold">
           Priya (member)

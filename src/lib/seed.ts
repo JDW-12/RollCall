@@ -36,7 +36,7 @@ export async function seedDemo(db: Db, log: (line: string) => void = () => {}): 
   const now = new Date();
   const mk = (name: string, email?: string): schema.User => ({ id: newId(), name, email: email ?? null, hue: hueFrom(name), createdAt: new Date(now.getTime() - 120 * D) });
   const people = [
-    mk("Sam Okafor", "sam@example.com"),
+    mk("Josh", "josh@example.com"),
     mk("Priya Shah"),
     mk("Deano Marsh"),
     mk("Ollie Grant"),
@@ -46,7 +46,7 @@ export async function seedDemo(db: Db, log: (line: string) => void = () => {}): 
     mk("Kieran Doyle"),
     mk("Ash Patel"),
     mk("Leon Barker"),
-    mk("Josh Reid"),
+    mk("Sam Okafor"),
     mk("Femi Adeyemi"),
   ];
   await db.insert(schema.users).values(people);
@@ -112,7 +112,7 @@ export async function seedDemo(db: Db, log: (line: string) => void = () => {}): 
       costPence: 6500,
       rsvpDeadlineAt: null,
       status: "played",
-      notes: wk === 13 ? "Bibs are in Sam's car." : "",
+      notes: wk === 13 ? "Bibs are in Josh's car." : "",
       createdBy: sam.id,
       createdAt: new Date(startsAt.getTime() - 6 * D),
       playedAt: new Date(startsAt.getTime() + 2 * H),
@@ -275,10 +275,10 @@ export async function seedDemo(db: Db, log: (line: string) => void = () => {}): 
   await db.insert(schema.authSessions).values({ id: priyaToken, userId: priya.id, createdAt: now, expiresAt: new Date(now.getTime() + 180 * D) });
 
   log("Seeded.");
-  log("  Crew:        /crew/tuesday-fc  (organiser: Sam, sam@example.com)");
+  log("  Crew:        /crew/tuesday-fc  (organiser: Josh, josh@example.com)");
   log("  Invite link: /join/tuesdayfc-demo-invite");
   log("  Padel crew:  /crew/battersea-padel (organiser: Priya)");
-  log("  Dev sign-in: email sam@example.com, code printed to console.");
-  log(`  Or set cookie rc_session=${token} to be Sam, rc_session=${priyaToken} to be Priya.`);
+  log("  Dev sign-in: email josh@example.com, code printed to console.");
+  log(`  Or set cookie rc_session=${token} to be Josh, rc_session=${priyaToken} to be Priya.`);
   return true;
 }

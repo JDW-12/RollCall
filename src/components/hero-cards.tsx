@@ -7,7 +7,7 @@ export function HeroCards() {
   const cats = SPORTS.football.ratings;
   const cards = [
     { name: "Priya Shah", hue: 20, card: { turnsUp: 95, form: 82, votes: 81, graft: 69, streak: 99, overall: 88 }, rank: 2, points: 105, tilt: -8 },
-    { name: "Sam Okafor", hue: 150, card: { turnsUp: 99, form: 78, votes: 99, graft: 99, streak: 99, overall: 93 }, rank: 1, points: 127, tilt: 0 },
+    { name: "Josh", hue: 150, card: { turnsUp: 99, form: 78, votes: 99, graft: 99, streak: 99, overall: 93 }, rank: 1, points: 127, tilt: 0 },
     { name: "Jonesy", hue: 330, card: { turnsUp: 51, form: 55, votes: 45, graft: 45, streak: 45, overall: 49 }, rank: 12, points: 4, tilt: 8 },
   ];
   return (

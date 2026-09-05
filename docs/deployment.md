@@ -15,7 +15,7 @@ Migrations run automatically on first database connection. To run them explicitl
 
 ## Sandbox mode (zero config)
 
-If the app runs on Vercel with no `DATABASE_URL`, it starts in sandbox mode: a throwaway SQLite file in `/tmp`, the demo crews seeded on first boot, one-tap sign-in at `/demo` (organiser) and `/demo?as=member`, sign-in codes shown on screen, and a yellow banner saying so. Data does not survive a cold start or a redeploy. It exists so the product can be tried the minute it is deployed. Setting `DATABASE_URL` turns every part of it off.
+If the app runs on Vercel with no `DATABASE_URL`, it starts in sandbox mode: a throwaway SQLite file in `/tmp`, the demo crews seeded on first boot, one-tap sign-in at `/demo` (Josh, organiser) and `/demo?as=member`, sign-in codes shown on screen, and a yellow banner saying so. Data does not survive a cold start or a redeploy. It exists so the product can be tried the minute it is deployed. Setting `DATABASE_URL` turns every part of it off.
 
 ## Vercel, first deployment from the dashboard
 

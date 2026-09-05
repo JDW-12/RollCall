@@ -108,7 +108,7 @@ export default async function Landing() {
 
 function Demo() {
   const rows = [
-    { name: "Sam", hue: 150, turn: "14/14", form: 8.1, pts: 42, tone: "good" as const },
+    { name: "Josh", hue: 150, turn: "14/14", form: 8.1, pts: 42, tone: "good" as const },
     { name: "Priya", hue: 20, turn: "13/14", form: 7.9, pts: 39, tone: "good" as const },
     { name: "Deano", hue: 260, turn: "11/14", form: 7.4, pts: 31, tone: "warn" as const },
     { name: "Jonesy", hue: 330, turn: "5/14", form: 6.2, pts: 11, tone: "bad" as const },

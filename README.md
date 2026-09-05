@@ -29,7 +29,7 @@ npm run db:seed        # creates data/rollcall.db and a demo crew with 14 weeks 
 npm run dev            # http://localhost:3000
 ```
 
-The seed prints two ready-made login cookies (organiser and member) and an invite link. Or sign in with `sam@example.com`: without an email provider configured, the six-digit code is printed to the server console.
+The seed prints two ready-made login cookies (organiser and member) and an invite link. Or sign in with `josh@example.com`: without an email provider configured, the six-digit code is printed to the server console.
 
 Demo crews:
 
