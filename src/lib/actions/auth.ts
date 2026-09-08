@@ -3,6 +3,7 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb, schema } from "@/db/client";
@@ -89,6 +90,13 @@ export async function verifyCode(_prev: ActionState, fd: FormData): Promise<Acti
   });
   if (r.error) return r;
   redirect(next);
+}
+
+export async function setTheme(fd: FormData): Promise<void> {
+  const theme = str(fd, "theme") === "light" ? "light" : "dark";
+  const jar = await cookies();
+  jar.set("rc_theme", theme, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  revalidatePath("/", "layout");
 }
 
 export async function signOut(): Promise<void> {

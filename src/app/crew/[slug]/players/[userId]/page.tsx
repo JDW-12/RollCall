@@ -34,7 +34,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
     <CrewShell crew={crew} user={user} active="table">
       <PageTitle eyebrow={`#${rank} in ${crew.name}`} title={m.name} />
       <div className="grid gap-4 sm:grid-cols-[300px_1fr] items-start">
-        <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} points={row.points} />
+        <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} points={row.points} season={crew.seasonName} />
         <div className="flex flex-col gap-3">
           <Panel className="p-4 grid grid-cols-2 gap-4">
             <Stat label="Played" value={row.played} />

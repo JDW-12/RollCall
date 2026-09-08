@@ -4,12 +4,12 @@ import type { ComponentProps, ReactNode } from "react";
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-sm font-semibold text-[15px] leading-none select-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap";
+  "press inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-md font-semibold text-[15px] leading-none select-none disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap";
 const variants: Record<Variant, string> = {
-  primary: "bg-pitch text-pitch-ink hover:bg-pitch-deep",
-  secondary: "border border-line bg-panel text-ink hover:border-ink-3",
+  primary: "bg-pitch text-pitch-ink hover:bg-pitch-deep shadow-[0_8px_24px_-12px_var(--pitch-glow)]",
+  secondary: "border border-line bg-panel-2 text-ink hover:border-ink-3",
   ghost: "text-ink-2 hover:bg-ground-2",
-  danger: "border border-red text-red hover:bg-red-soft",
+  danger: "border border-red/60 text-red hover:bg-red-soft",
 };
 
 export function cls(...parts: (string | false | null | undefined)[]) {
@@ -25,13 +25,13 @@ export function LinkButton({ variant = "primary", className, ...props }: Compone
 }
 
 export function Panel({ className, children, as: Tag = "section" }: { className?: string; children: ReactNode; as?: "section" | "div" | "article" }) {
-  return <Tag className={cls("bg-panel border border-line rounded-md", className)}>{children}</Tag>;
+  return <Tag className={cls("surface", className)}>{children}</Tag>;
 }
 
 export function Pill({ tone = "neutral", children, className }: { tone?: "neutral" | "good" | "warn" | "bad" | "ink"; children: ReactNode; className?: string }) {
   const tones = {
-    neutral: "bg-ground-2 text-ink-2",
-    good: "bg-pitch-soft text-pitch-deep",
+    neutral: "bg-ground-2 text-ink-2 border border-line",
+    good: "bg-pitch-soft text-pitch",
     warn: "bg-card-soft text-card-ink",
     bad: "bg-red-soft text-red",
     ink: "bg-ink text-ground",
@@ -77,7 +77,7 @@ export function EmptyState({ title, body, action }: { title: string; body?: Reac
 }
 
 export function Stat({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "good" | "warn" | "bad" }) {
-  const color = tone === "good" ? "text-pitch-deep" : tone === "warn" ? "text-card-ink" : tone === "bad" ? "text-red" : "text-ink";
+  const color = tone === "good" ? "text-pitch" : tone === "warn" ? "text-card-ink" : tone === "bad" ? "text-red" : "text-ink";
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <span className="eyebrow">{label}</span>
@@ -89,7 +89,7 @@ export function Stat({ label, value, sub, tone }: { label: string; value: ReactN
 
 export function Notice({ tone = "good", children }: { tone?: "good" | "warn" | "bad" | "neutral"; children: ReactNode }) {
   const tones = {
-    good: "bg-pitch-soft text-pitch-deep border-pitch/30",
+    good: "bg-pitch-soft text-pitch border-pitch/30",
     warn: "bg-card-soft text-card-ink border-card/40",
     bad: "bg-red-soft text-red border-red/30",
     neutral: "bg-ground-2 text-ink-2 border-line",

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, IBM_Plex_Mono, Instrument_Sans } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 const display = Barlow_Condensed({ variable: "--font-display", subsets: ["latin"], weight: ["500", "600", "700", "800"] });
@@ -24,18 +25,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f6f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1512" },
-  ],
+  themeColor: "#0b1210",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = (await cookies()).get("rc_theme")?.value === "light" ? "light" : "dark";
   return (
-    <html lang="en-GB" className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}>
+    <html lang="en-GB" data-theme={theme} className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

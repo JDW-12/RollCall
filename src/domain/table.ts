@@ -46,6 +46,8 @@ export type TableRow = {
   /** Rolling average of the last five sessions played, 4.0 - 10.0. Null until they've played. */
   form: number | null;
   streak: number;
+  /** Last five played sessions, oldest first. */
+  history: ("played" | "missed" | "skip")[];
   card: CardStats;
 };
 
@@ -106,7 +108,7 @@ export function computeTable(input: TableInput): TableRow[] {
     ratingsBy.set(r.sessionId, list);
   }
 
-  const rows = new Map<string, TableRow & { scores: number[]; history: ("played" | "missed" | "skip")[] }>();
+  const rows = new Map<string, TableRow & { scores: number[] }>();
   for (const id of input.memberIds) {
     rows.set(id, {
       userId: id,
@@ -194,10 +196,9 @@ export function computeTable(input: TableInput): TableRow[] {
     }
     row.streak = streak;
     row.card = cardStats(row, input.categories);
-    const { scores: _s, history: _h, ...clean } = row;
+    const { scores: _s, ...clean } = row;
     void _s;
-    void _h;
-    out.push(clean);
+    out.push({ ...clean, history: row.history.slice(-5) });
   }
 
   return out.sort(

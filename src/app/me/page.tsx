@@ -5,13 +5,15 @@ import { PlainShell } from "@/components/shell";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Button, Field, LinkButton, PageTitle, Panel } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
-import { signOut, updateProfile } from "@/lib/actions/auth";
+import { setTheme, signOut, updateProfile } from "@/lib/actions/auth";
+import { cookies } from "next/headers";
 
 export const metadata: Metadata = { title: "You" };
 
 export default async function MePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/signin?next=/me");
+  const theme = (await cookies()).get("rc_theme")?.value === "light" ? "light" : "dark";
   return (
     <PlainShell user={user}>
       <PageTitle eyebrow="Your account" title={user.name} action={<Avatar name={user.name} hue={user.hue} size={56} />} />
@@ -36,6 +38,20 @@ export default async function MePage() {
               </LinkButton>
             </>
           )}
+        </Panel>
+        <Panel className="p-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="eyebrow">Look</div>
+            <p className="text-sm text-ink-2">Floodlit is the default. Daylight if you prefer.</p>
+          </div>
+          <form action={setTheme} className="flex gap-1">
+            <Button type="submit" name="theme" value="dark" variant={theme === "dark" ? "primary" : "secondary"} className="min-h-9 px-3 text-sm">
+              Floodlit
+            </Button>
+            <Button type="submit" name="theme" value="light" variant={theme === "light" ? "primary" : "secondary"} className="min-h-9 px-3 text-sm">
+              Daylight
+            </Button>
+          </form>
         </Panel>
         <div className="flex items-center justify-between">
           <LinkButton href="/home" variant="ghost">

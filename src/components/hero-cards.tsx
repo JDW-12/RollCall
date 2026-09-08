@@ -18,7 +18,9 @@ export function HeroCards() {
           className="absolute top-0 w-[260px]"
           style={{ left: `calc(50% - 130px + ${(i - 1) * 118}px)`, top: i === 1 ? 0 : 26, zIndex: i === 1 ? 2 : 1, transformOrigin: "50% 120%" }}
         >
-          <PlayerCard name={c.name} hue={c.hue} crewName="Tuesday FC" sportLabel="Football" card={c.card} rank={c.rank} categories={cats} points={c.points} tilt={c.tilt} />
+          <div style={{ transform: `rotate(${c.tilt}deg)` }}>
+            <PlayerCard name={c.name} hue={c.hue} crewName="Tuesday FC" sport="football" sportLabel="Football" card={c.card} rank={c.rank} categories={cats} points={c.points} season="Autumn 2026" />
+          </div>
         </div>
       ))}
     </div>
