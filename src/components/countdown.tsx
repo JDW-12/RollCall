@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 function label(ms: number): string {
   if (ms <= 0) return "Kick-off";
@@ -12,14 +12,26 @@ function label(ms: number): string {
   return `in ${m} min`;
 }
 
-/** Live "in 3h 12m" until kick-off. Renders nothing until mounted so server and client markup match. */
+/** A shared 30-second clock. Server snapshot is null so server and first client render match. */
+const listeners = new Set<() => void>();
+let timer: ReturnType<typeof setInterval> | null = null;
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  if (!timer) timer = setInterval(() => listeners.forEach((l) => l()), 30_000);
+  return () => {
+    listeners.delete(cb);
+    if (listeners.size === 0 && timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
+const getNow = () => Math.floor(Date.now() / 30_000) * 30_000;
+const getServerNow = () => null;
+
+/** Live "in 3h 12m" until kick-off. */
 export function Countdown({ at, className }: { at: number; className?: string }) {
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useSyncExternalStore(subscribe, getNow, getServerNow);
   if (now === null) return <span className={className} aria-hidden="true">&nbsp;</span>;
   return <span className={className}>{label(at - now)}</span>;
 }

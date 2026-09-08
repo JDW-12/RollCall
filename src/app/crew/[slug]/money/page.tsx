@@ -40,7 +40,7 @@ export default async function MoneyPage({ params }: { params: Promise<{ slug: st
         {rows.map(({ m, b }) => {
           const share = b.charged > 0 ? Math.min(1, b.paid / b.charged) : b.paid > 0 ? 1 : 0;
           return (
-            <div key={m.id} className="px-3 py-3 flex items-center gap-3">
+            <div key={m.id} className="px-3 py-3 flex items-start gap-3">
               <Avatar name={m.name} hue={m.hue} size={36} />
               <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
@@ -48,26 +48,28 @@ export default async function MoneyPage({ params }: { params: Promise<{ slug: st
                     {m.name}
                     {m.id === user.id ? <span className="text-ink-3 font-normal"> (you)</span> : null}
                   </span>
-                  <span className="text-xs text-ink-3 tnum whitespace-nowrap">
-                    {pounds(b.charged)} charged · {pounds(b.paid)} paid
-                  </span>
+                  {b.owed > 0 ? <Pill tone="bad">Owes {pounds(b.owed)}</Pill> : b.owed < 0 ? <Pill tone="good">Credit {pounds(-b.owed)}</Pill> : <Pill tone="good">Settled</Pill>}
                 </div>
-                <div className="h-1 rounded-full bg-ground-2 overflow-hidden" aria-hidden="true">
-                  <div className={cls("h-full rounded-full", b.owed > 0 ? "bg-red" : "bg-pitch")} style={{ width: `${Math.round(share * 100)}%` }} />
+                <span className="text-xs text-ink-3 tnum">
+                  {pounds(b.charged)} charged · {pounds(b.paid)} paid
+                </span>
+                <div className="flex items-center gap-3">
+                  <div className="h-1 flex-1 rounded-full bg-ground-2 overflow-hidden" aria-hidden="true">
+                    <div className={cls("h-full rounded-full", b.owed > 0 ? "bg-red" : "bg-pitch")} style={{ width: `${Math.round(share * 100)}%` }} />
+                  </div>
+                  {isOrganiser && b.owed > 0 ? (
+                    <ActionForm action={recordPayment} className="gap-0">
+                      <input type="hidden" name="crewId" value={crew.id} />
+                      <input type="hidden" name="userId" value={m.id} />
+                      <input type="hidden" name="amount" value={pounds(b.owed).slice(1)} />
+                      <input type="hidden" name="method" value="transfer" />
+                      <SubmitButton variant="ghost" className="min-h-8 px-2.5 text-xs border border-line" pendingText="…">
+                        Paid up
+                      </SubmitButton>
+                    </ActionForm>
+                  ) : null}
                 </div>
               </div>
-              {b.owed > 0 ? <Pill tone="bad">Owes {pounds(b.owed)}</Pill> : b.owed < 0 ? <Pill tone="good">Credit {pounds(-b.owed)}</Pill> : <Pill tone="good">Settled</Pill>}
-              {isOrganiser && b.owed > 0 ? (
-                <ActionForm action={recordPayment} className="gap-0">
-                  <input type="hidden" name="crewId" value={crew.id} />
-                  <input type="hidden" name="userId" value={m.id} />
-                  <input type="hidden" name="amount" value={pounds(b.owed).slice(1)} />
-                  <input type="hidden" name="method" value="transfer" />
-                  <SubmitButton variant="ghost" className="min-h-9 px-2.5 text-xs border border-line" pendingText="…">
-                    Paid up
-                  </SubmitButton>
-                </ActionForm>
-              ) : null}
             </div>
           );
         })}

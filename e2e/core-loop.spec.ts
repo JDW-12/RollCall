@@ -87,7 +87,8 @@ test("organiser + mate: crew → session → RSVP → play → rate → table �
   await expect(org).toHaveURL(/\/rate$/);
 
   // Organiser rates: Deano player of the match.
-  await org.check('input[name="cat_motm"]');
+  // Rating choices are tiles over visually hidden radios, so click the tile.
+  await org.locator('label:has(input[name="cat_motm"])').first().click();
   await org.click('button:has-text("Submit votes")');
   await expect(org).toHaveURL(/rated=1/);
   await expect(org.getByText("Votes in. Nice one.")).toBeVisible();

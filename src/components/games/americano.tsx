@@ -2,7 +2,8 @@ import type { Game } from "@/db/schema";
 import { americanoStandings, type Americano } from "@/domain/americano";
 import type { Member } from "@/lib/queries";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Field, Panel, cls } from "@/components/ui";
+import { IconPadel } from "@/components/icons";
+import { Eyebrow, Field, Panel, cls } from "@/components/ui";
 import { scoreAmericano, startAmericano } from "@/lib/actions/games";
 
 export function AmericanoPanel({ sessionId, game, members, isOrganiser, inCount }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; inCount: number }) {
@@ -10,8 +11,12 @@ export function AmericanoPanel({ sessionId, game, members, isOrganiser, inCount 
   const first = (id: string) => members.find((x) => x.id === id)?.name.split(" ")[0] ?? "?";
   return (
     <Panel className="p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold uppercase">Americano</h3>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <IconPadel size={18} className="text-pitch" />
+          <h3 className="text-xl font-bold uppercase">Americano</h3>
+        </div>
+        {data ? <span className="eyebrow tnum">to {data.pointsPerMatch}</span> : null}
       </div>
       {!data ? (
         isOrganiser ? (
@@ -42,45 +47,56 @@ export function AmericanoPanel({ sessionId, game, members, isOrganiser, inCount 
       ) : (
         <>
           <ol className="flex flex-col gap-2">
-            {data.matches.map((m, i) => (
-              <li key={i} className="border border-line rounded-sm p-2.5">
-                <div className="eyebrow mb-1">
-                  Round {m.round} · Court {m.court} · to {data.pointsPerMatch}
-                </div>
-                <ActionForm action={scoreAmericano} className="gap-2">
-                  <input type="hidden" name="sessionId" value={sessionId} />
-                  <input type="hidden" name="match" value={i} />
-                  <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-2 text-sm">
-                    <span className={cls("font-semibold text-right", m.scoreA !== null && m.scoreB !== null && m.scoreA > m.scoreB && "text-pitch-deep")}>
-                      {first(m.teamA[0])} &amp; {first(m.teamA[1])}
+            {data.matches.map((m, i) => {
+              const done = m.scoreA !== null && m.scoreB !== null;
+              const aWins = done && m.scoreA! > m.scoreB!;
+              const bWins = done && m.scoreB! > m.scoreA!;
+              return (
+                <li key={i} className="rounded-md border border-line bg-panel-2 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 pt-2">
+                    <span className="eyebrow tnum">
+                      R{m.round} · Court {m.court}
                     </span>
-                    <input name="scoreA" inputMode="numeric" className="w-14 text-center tnum min-h-9 py-1" defaultValue={m.scoreA ?? ""} disabled={!isOrganiser} aria-label="Team A score" />
-                    <span className="text-ink-3">v</span>
-                    <input name="scoreB" inputMode="numeric" className="w-14 text-center tnum min-h-9 py-1" defaultValue={m.scoreB ?? ""} disabled={!isOrganiser} aria-label="Team B score" />
-                    <span className={cls("font-semibold", m.scoreA !== null && m.scoreB !== null && m.scoreB > m.scoreA && "text-pitch-deep")}>
-                      {first(m.teamB[0])} &amp; {first(m.teamB[1])}
-                    </span>
+                    {done ? <span className="eyebrow text-pitch">Done</span> : null}
                   </div>
-                  {isOrganiser ? (
-                    <SubmitButton variant="ghost" className="min-h-8 px-2 text-xs self-end" pendingText="…">
-                      Save score
-                    </SubmitButton>
-                  ) : null}
-                </ActionForm>
-              </li>
-            ))}
+                  <ActionForm action={scoreAmericano} className="gap-2 px-3 pb-2.5 pt-1">
+                    <input type="hidden" name="sessionId" value={sessionId} />
+                    <input type="hidden" name="match" value={i} />
+                    <div className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-2 text-sm">
+                      <span className={cls("font-semibold text-right truncate", aWins ? "text-pitch" : bWins ? "text-ink-3" : "")}>
+                        {first(m.teamA[0])} &amp; {first(m.teamA[1])}
+                      </span>
+                      <input name="scoreA" inputMode="numeric" className="w-14 text-center tnum min-h-11 py-1 display text-2xl font-bold px-1" defaultValue={m.scoreA ?? ""} disabled={!isOrganiser} aria-label="Team A score" />
+                      <span className="eyebrow">v</span>
+                      <input name="scoreB" inputMode="numeric" className="w-14 text-center tnum min-h-11 py-1 display text-2xl font-bold px-1" defaultValue={m.scoreB ?? ""} disabled={!isOrganiser} aria-label="Team B score" />
+                      <span className={cls("font-semibold truncate", bWins ? "text-pitch" : aWins ? "text-ink-3" : "")}>
+                        {first(m.teamB[0])} &amp; {first(m.teamB[1])}
+                      </span>
+                    </div>
+                    {isOrganiser ? (
+                      <SubmitButton variant="ghost" className="min-h-8 px-2 text-xs self-end" pendingText="…">
+                        Save score
+                      </SubmitButton>
+                    ) : null}
+                  </ActionForm>
+                </li>
+              );
+            })}
           </ol>
           <div>
-            <div className="eyebrow mb-1">Standings</div>
-            <table className="w-full text-sm">
+            <Eyebrow className="mb-1">Standings</Eyebrow>
+            <table className="w-full text-sm font-mono">
               <tbody>
                 {americanoStandings(data).map((s, i) => (
-                  <tr key={s.userId} className="border-t border-line-2">
-                    <td className="py-1.5 w-6 text-ink-3 tnum">{i + 1}</td>
-                    <td className="py-1.5 font-semibold">{members.find((x) => x.id === s.userId)?.name ?? "?"}</td>
+                  <tr key={s.userId} className={cls("border-t border-line-2", i === 0 && "text-pitch")}>
+                    <td className="py-1.5 w-6 tnum text-ink-3">{i + 1}</td>
+                    <td className="py-1.5 font-sans font-semibold">{members.find((x) => x.id === s.userId)?.name ?? "?"}</td>
                     <td className="py-1.5 text-right tnum text-ink-2">{s.played} pl</td>
-                    <td className="py-1.5 text-right tnum text-ink-2">{s.diff >= 0 ? "+" : ""}{s.diff}</td>
-                    <td className="py-1.5 text-right tnum font-bold">{s.points}</td>
+                    <td className="py-1.5 text-right tnum text-ink-2">
+                      {s.diff >= 0 ? "+" : ""}
+                      {s.diff}
+                    </td>
+                    <td className="py-1.5 text-right tnum font-bold display text-lg">{s.points}</td>
                   </tr>
                 ))}
               </tbody>

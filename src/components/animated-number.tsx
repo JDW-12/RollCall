@@ -10,16 +10,17 @@ export function AnimatedNumber({ value, className, decimals = 0, suffix = "" }: 
     if (done.current) return;
     done.current = true;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const start = performance.now();
     const dur = 700;
     let raf = 0;
+    let start = 0;
     const tick = (t: number) => {
+      if (!start) start = t;
       const p = Math.min(1, (t - start) / dur);
       const eased = 1 - Math.pow(1 - p, 3);
       setN(value * eased);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
-    setN(0);
+    // First frame starts from zero; nothing is set synchronously inside the effect.
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value]);

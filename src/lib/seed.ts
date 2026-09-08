@@ -21,6 +21,15 @@ function lastTuesdayAt20(now: Date, weeksBack: number): Date {
     if (fmt.formatToParts(d).find((p) => p.type === "weekday")?.value === "Tue") break;
     d = new Date(d.getTime() - D);
   }
+  // If that Tuesday's 20:00 hasn't happened yet (it's Tuesday afternoon), the most recent one is last week's.
+  const at20 = (x: Date) => {
+    const p = fmt.formatToParts(x);
+    const g = (t: string) => p.find((q) => q.type === t)?.value ?? "";
+    const m = /GMT([+-]\d+)?/.exec(g("timeZoneName"));
+    const off = m && m[1] ? Number(m[1]) : 0;
+    return new Date(Date.UTC(Number(g("year")), Number(g("month")) - 1, Number(g("day")), 20 - off, 0, 0, 0));
+  };
+  if (at20(d).getTime() > now.getTime()) d = new Date(d.getTime() - 7 * D);
   d = new Date(d.getTime() - weeksBack * 7 * D);
   const parts = fmt.formatToParts(d);
   const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
