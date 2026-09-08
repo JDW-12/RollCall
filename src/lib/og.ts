@@ -15,11 +15,30 @@ export function ogFonts() {
   return cached;
 }
 
+/**
+ * Share-card palette: the dark floodlit theme, as literal hex because satori
+ * cannot read CSS variables. Keep in step with the dark tokens in globals.css.
+ */
 export const OG = {
-  ground: "#f5f6f2",
-  ink: "#14201b",
-  ink2: "#3e4a44",
-  ink3: "#6e7a73",
-  pitch: "#1e8a4c",
+  ground: "#0b1210",
+  panel: "#151f1a",
+  line: "#243129",
+  ink: "#f2f5ef",
+  ink2: "#b7c3bb",
+  ink3: "#7e8b83",
+  pitch: "#35d07a",
+  pitchInk: "#06130b",
+  glow: "rgba(53, 208, 122, 0.38)",
   display: "Barlow Condensed",
 } as const;
+
+/** Card tier by overall rating. Mirrors tierOf() in player-card.tsx without pulling a client-leaning module into the image route. */
+export function ogTier(overall: number): "Elite" | "Gold" | "Silver" | "Sick note" {
+  if (overall >= 85) return "Elite";
+  if (overall >= 72) return "Gold";
+  if (overall >= 60) return "Silver";
+  return "Sick note";
+}
+
+/** The mark as inline SVG for satori: tick in a rounded square. */
+export const OG_MARK_PATH = "M15 33l10 10 25-25";

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "The app for your crew. Pin the session, everyone taps in, turning up becomes a stat.",
     start_url: "/home",
     display: "standalone",
-    background_color: "#f5f6f2",
-    theme_color: "#1e8a4c",
+    background_color: "#0b1210",
+    theme_color: "#35d07a",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
