@@ -38,9 +38,9 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             const m = members.find((x) => x.id === a.userId);
             return (
               <div key={a.key} style={{ display: "flex", flexDirection: "column", width: 528, background: OG.panel, border: `2px solid ${tone(a.tone)}`, borderRadius: 16, padding: "18px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", ...label, color: tone(a.tone) }}>
-                  <span>{a.label}</span>
-                  <span>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, ...label, color: tone(a.tone) }}>
+                  <span style={{ display: "flex", flex: 1, overflow: "hidden", whiteSpace: "nowrap" }}>{a.label}</span>
+                  <span style={{ display: "flex", flexShrink: 0 }}>
                     {a.value} {a.unit}
                   </span>
                 </div>

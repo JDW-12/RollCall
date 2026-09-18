@@ -26,7 +26,7 @@ export function seasonAwards(rows: TableRow[], categories: RatingCategory[], min
   if (champion && champion.played >= minPlayed) awards.push({ key: "champion", label: "Champion", blurb: "Top of the table when the music stopped.", userId: champion.userId, value: champion.points, unit: "pts", tone: "pitch" });
   if (top) {
     const w = pick((r) => r.votes[top.key] ?? 0);
-    if ((w.votes[top.key] ?? 0) > 0) awards.push({ key: "player", label: `${top.label} of the season`, blurb: "Most votes from the people who were actually there.", userId: w.userId, value: w.votes[top.key] ?? 0, unit: "votes", tone: "pitch" });
+    if ((w.votes[top.key] ?? 0) > 0) awards.push({ key: "player", label: "Player of the season", blurb: "Most votes from the people who were actually there.", userId: w.userId, value: w.votes[top.key] ?? 0, unit: "votes", tone: "pitch" });
   }
   const iron = pick((r) => turnUpRate(r) * 1000 + r.played);
   awards.push({ key: "iron", label: "Iron man", blurb: "Turned up more than anyone. Never a sick note.", userId: iron.userId, value: Math.round(turnUpRate(iron) * 100), unit: "%", tone: "ink" });
