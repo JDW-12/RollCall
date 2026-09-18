@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getDb, schema } from "@/db/client";
 import { getCurrentUser, createGuestUser, startSession } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { track } from "@/lib/events";
 import { requireCrewAction } from "@/lib/access";
 import { hueFrom, newId, newToken, slugify } from "@/lib/ids";
 import { isSportKey } from "@/domain/sports";
@@ -51,6 +53,14 @@ export async function createCrew(_prev: ActionState, fd: FormData): Promise<Acti
     slug = await uniqueSlug(slugify(input.name));
     const now = new Date();
     const crewId = newId();
+    // Referral: the crew whose shared card brought this organiser here (set by /go).
+    const jar = await cookies();
+    const ref = jar.get("rc_ref")?.value ?? "";
+    let referredByCrewId: string | null = null;
+    if (ref) {
+      const r = (await db.select({ id: schema.crews.id }).from(schema.crews).where(eq(schema.crews.id, ref)).limit(1))[0];
+      if (r) referredByCrewId = r.id;
+    }
     await db.insert(schema.crews).values({
       id: crewId,
       slug,
@@ -63,10 +73,15 @@ export async function createCrew(_prev: ActionState, fd: FormData): Promise<Acti
       seasonName: "Season 1",
       seasonStartsAt: now,
       createdBy: user.id,
+      referredByCrewId,
       createdAt: now,
     });
     await db.insert(schema.crewMembers).values({ id: newId(), crewId, userId: user.id, role: "organiser", joinedAt: now });
     await addFeed(crewId, null, "crew_created", { by: user.id, name: input.name });
+    if (referredByCrewId) {
+      await track("crew_referred", { crewId, userId: user.id, payload: { referredBy: referredByCrewId } });
+      jar.delete("rc_ref");
+    }
   });
   if (r.error) return r;
   redirect(`/crew/${slug}?welcome=1`);

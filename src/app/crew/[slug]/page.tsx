@@ -65,7 +65,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
           <div className="display text-2xl font-bold uppercase">Crew&apos;s live. Now get them in.</div>
           <p className="text-sm text-ink-2">Drop this link in the group chat. Nobody needs to install anything, they just type their name.</p>
           <code className="text-xs bg-panel border border-line rounded-sm px-2 py-1.5 wrap-anywhere">{inviteUrl}</code>
-          <ShareButtons text={`You're in ${crew.name}. Tap to join so you can RSVP to sessions:`} url={inviteUrl} label="Send to WhatsApp" />
+          <ShareButtons text={`You're in ${crew.name}. Tap to join so you can RSVP to sessions:`} url={inviteUrl} label="Send to WhatsApp" crewId={crew.id} what="invite" />
         </Panel>
       ) : null}
 

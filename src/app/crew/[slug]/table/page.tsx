@@ -9,7 +9,7 @@ import { CrewShell } from "@/components/shell";
 import { Avatar } from "@/components/avatar";
 import { FormDots } from "@/components/sparkline";
 import { IconAlert, IconArrowDown, IconArrowUp, IconFlame, IconMedal, IconTrophy } from "@/components/icons";
-import { PageTitle, Panel, cls } from "@/components/ui";
+import { LinkButton, PageTitle, Panel, cls } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Table" };
 
@@ -124,7 +124,7 @@ export default async function TablePage({ params }: { params: Promise<{ slug: st
 
   return (
     <CrewShell crew={crew} user={user} active="table">
-      <PageTitle eyebrow={crew.seasonName} title="The table">
+      <PageTitle eyebrow={crew.seasonName} title="The table" action={<LinkButton href={`/crew/${crew.slug}/season`} variant="secondary" className="min-h-9 px-3 text-sm">Season awards</LinkButton>}>
         +3 for turning up, +{top.points} per {top.label.toLowerCase()} vote, +1 per {sport.ratings[1].label.toLowerCase()} vote, −2 late drop, −3 no-show.
       </PageTitle>
       {!live ? (

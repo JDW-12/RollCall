@@ -1,7 +1,9 @@
 import { appUrl } from "@/lib/env";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireCrewPage } from "@/lib/access";
+import { optionalCrewPage } from "@/lib/access";
+import { PlayerPreview } from "@/components/previews";
+import { track } from "@/lib/events";
 import { getCrewLedger, getCrewTable, getUser } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { turnUpRate } from "@/domain/table";
@@ -24,7 +26,16 @@ const BAR = ["bg-pitch", "bg-pitch-deep", "bg-card"];
 
 export default async function PlayerPage({ params }: { params: Promise<{ slug: string; userId: string }> }) {
   const { slug, userId } = await params;
-  const { crew, user } = await requireCrewPage(slug);
+  const gate = await optionalCrewPage(slug);
+  if (!gate.member) {
+    const t = await getCrewTable(gate.crew);
+    const pm = t.members.find((x) => x.id === userId);
+    const prow = t.rows.find((r) => r.userId === userId);
+    if (!pm || !prow) notFound();
+    await track("preview_view", { crewId: gate.crew.id, userId: gate.user?.id ?? null, payload: { what: "player", player: userId } });
+    return <PlayerPreview crew={gate.crew} member={pm} row={prow} rank={t.rows.findIndex((r) => r.userId === userId) + 1} />;
+  }
+  const { crew, user } = gate.member;
   const { rows, members } = await getCrewTable(crew);
   const m = members.find((x) => x.id === userId);
   const row = rows.find((r) => r.userId === userId);
@@ -100,7 +111,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             <span className={cls("display text-2xl font-bold tnum", owed > 0 ? "text-red" : "text-pitch")}>{owed > 0 ? `Owes ${pounds(owed)}` : owed < 0 ? `In credit ${pounds(-owed)}` : "Settled"}</span>
           </Panel>
 
-          <ShareButtons text={`${m.name}'s ${crew.name} card. Overall ${row.card.overall}.`} url={url} label="Share card" />
+          <ShareButtons text={`${m.name}'s ${crew.name} card. Overall ${row.card.overall}.`} url={url} label="Share card" crewId={crew.id} what="player" />
         </div>
       </div>
     </CrewShell>

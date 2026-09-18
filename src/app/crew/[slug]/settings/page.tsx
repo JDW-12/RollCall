@@ -62,7 +62,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
           <p className="relative text-sm text-ink-2">Anyone with this joins by typing their name. Pin it in the group chat.</p>
           <code className="relative block font-mono text-[15px] sm:text-base font-semibold bg-ground-2 border border-line rounded-sm px-3 py-3 wrap-anywhere leading-snug">{inviteUrl}</code>
           <div className="relative flex flex-wrap gap-2 items-center">
-            <ShareButtons text={`Join ${crew.name} on Roll Call so you can tap in to sessions:`} url={inviteUrl} label="Send invite" />
+            <ShareButtons text={`Join ${crew.name} on Roll Call so you can tap in to sessions:`} url={inviteUrl} label="Send invite" crewId={crew.id} what="invite" />
             {isOrganiser ? (
               <form action={rotateInvite}>
                 <input type="hidden" name="crewId" value={crew.id} />

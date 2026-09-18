@@ -15,6 +15,13 @@
       "when": 1788551584492,
       "tag": "0001_organic_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789566150323,
+      "tag": "0002_awesome_wallop",
+      "breakpoints": true
     }
   ]
 }

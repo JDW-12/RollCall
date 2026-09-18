@@ -37,6 +37,10 @@ Demo crews:
 - `/crew/battersea-padel` – padel four with one upcoming match and a reserve waiting.
 - `/join/tuesdayfc-demo-invite` – the zero-install join flow.
 
+## Growth loop and pilot dashboard
+
+Shared session and player links open for anyone as a poster with a join action. "Start your own crew" from a preview records the referral. `/crew/<slug>/season` is the shareable awards page. `/founder` (gated by `FOUNDER_EMAILS`) shows the pilot metrics from `docs/metrics.md`.
+
 ## Deploy
 
 See [docs/deployment.md](docs/deployment.md). With no database configured on Vercel the app runs in a clearly-labelled sandbox mode with demo data and one-tap sign-in at `/demo`, so it can be tried immediately; add a Turso `DATABASE_URL` for real data.

@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { requireCrewPage } from "@/lib/access";
+import { optionalCrewPage } from "@/lib/access";
+import { SessionPreview } from "@/components/previews";
+import { track } from "@/lib/events";
 import { getCrewLedger, getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { playing, reserves, summarise } from "@/domain/rsvp";
@@ -35,9 +37,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function SessionPage({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<{ pinned?: string; rated?: string }> }) {
   const { slug, id } = await params;
   const flags = await searchParams;
-  const { crew, user, isOrganiser } = await requireCrewPage(slug);
+  const gate = await optionalCrewPage(slug);
   const bundle = await getSessionBundle(id);
-  if (!bundle || bundle.session.crewId !== crew.id) notFound();
+  if (!bundle || bundle.session.crewId !== gate.crew.id) notFound();
+  if (!gate.member) {
+    // Someone opened a shared link without being in the crew: show the poster, not a login wall.
+    await track("preview_view", { crewId: gate.crew.id, sessionId: id, userId: gate.user?.id ?? null, payload: { what: "session" } });
+    return <SessionPreview crew={gate.crew} session={bundle.session} rsvps={bundle.rsvps} members={await listMembers(gate.crew.id)} />;
+  }
+  const { crew, user, isOrganiser } = gate.member;
   const { session, rsvps, attendance, ratings, games, entries, ledger } = bundle;
   const members = await listMembers(crew.id);
   const sport = sportOf(session.sport);
@@ -53,6 +61,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const started = session.startsAt.getTime() <= now;
   const finished = session.startsAt.getTime() + session.durationMin * 60_000 <= now;
   const url = `${await appUrl()}/crew/${crew.slug}/s/${session.id}`;
+  const shareWhat: "recap" | "session" = session.status === "played" ? "recap" : "session";
   const share = previewShare(session.costMode, session.costPence, sum.in);
   const game = (kind: string) => games.find((g) => g.kind === kind);
   const attended = attendance.filter((a) => a.attended);
@@ -84,7 +93,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
       {flags.pinned ? (
         <Panel className="p-4 mb-4 flex flex-col gap-3 border-pitch/40 bg-pitch-soft anim-pop">
           <div className="display text-2xl font-bold uppercase">Pinned. Now send it.</div>
-          <ShareButtons text={shareText} url={url} label="Send to WhatsApp" />
+          <ShareButtons text={shareText} url={url} crewId={crew.id} sessionId={session.id} what={shareWhat} label="Send to WhatsApp" />
         </Panel>
       ) : null}
       {flags.rated ? (
@@ -184,7 +193,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
                 Drop out inside {crew.lateDropHours} hours of kick-off{session.rsvpDeadlineAt ? ` or after ${fmtLong(session.rsvpDeadlineAt)}` : ""} and your share still stands.
               </p>
             ) : null}
-            <ShareButtons text={shareText} url={url} compact />
+            <ShareButtons text={shareText} url={url} crewId={crew.id} sessionId={session.id} what={shareWhat} compact />
           </Panel>
 
           <Panel className="mt-3 divide-y divide-line-2 overflow-hidden anim-rise-3">
@@ -259,7 +268,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
                 {iRated ? "Change your votes" : "Rate it, three taps"}
               </LinkButton>
             ) : null}
-            <ShareButtons text={shareText} url={url} compact label="Share recap" />
+            <ShareButtons text={shareText} url={url} crewId={crew.id} sessionId={session.id} what={shareWhat} compact label="Share recap" />
           </Panel>
 
           <div className="mt-4">

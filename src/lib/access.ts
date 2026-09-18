@@ -41,6 +41,20 @@ export async function requireCrewPage(slug: string): Promise<CrewContext> {
   return { user, crew, membership, isOrganiser: membership.role === "organiser" };
 }
 
+/**
+ * For pages that have a public preview: never redirects. Returns the crew and, when the viewer is a
+ * signed-in member, their context. Callers render the preview when `member` is null.
+ */
+export async function optionalCrewPage(slug: string): Promise<{ crew: schema.Crew; user: CurrentUser | null; member: CrewContext | null }> {
+  const crew = await findCrewBySlug(slug);
+  if (!crew) notFound();
+  const user = await getCurrentUser();
+  if (!user) return { crew, user: null, member: null };
+  const membership = await findMembership(crew.id, user.id);
+  if (!membership) return { crew, user, member: null };
+  return { crew, user, member: { user, crew, membership, isOrganiser: membership.role === "organiser" } };
+}
+
 export { safeNext } from "./redirects";
 
 /** For actions: throws instead of redirecting. */

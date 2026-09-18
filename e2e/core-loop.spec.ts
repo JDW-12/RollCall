@@ -112,13 +112,24 @@ test("organiser + mate: crew → session → RSVP → play → rate → table �
   await expect(org.getByText("Sick note leaderboard")).toBeVisible();
   await expect(org.getByText("1 late · 0 no-show")).toBeVisible();
 
-  // Share cards render as PNG without any cookie.
+  // A stranger with the session link sees the poster and a join action, not a login wall.
   const anon = await browser.newContext();
+  const stranger = await anon.newPage();
+  await stranger.goto(sessionUrl);
+  await expect(stranger.getByRole("heading", { level: 1 })).toContainText("E2E 5s");
+  await expect(stranger.getByRole("link", { name: /Join .* to tap in/ })).toBeVisible();
+  // Season awards exist once a session has been played.
+  await org.goto(`/crew/${slug}/season`);
+  await expect(org.getByRole("heading", { level: 1 })).toContainText("Season awards");
+  await expect(org.getByText("Champion")).toBeVisible();
+
+  // Share cards render as PNG without any cookie.
   const img = await anon.request.get(`${sessionUrl}/opengraph-image`);
   expect(img.ok()).toBeTruthy();
   expect(img.headers()["content-type"]).toContain("image/png");
 
   // Player card page and its image.
+  await org.goto(`/crew/${slug}/table`);
   await org.click("tbody tr a >> nth=0");
   await expect(org).toHaveURL(/\/players\//);
   await expect(org.getByText("Share card")).toBeVisible();

@@ -69,6 +69,8 @@ export const crews = sqliteTable(
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),
+    /** The crew whose shared link brought this organiser in, if any. */
+    referredByCrewId: text("referred_by_crew_id"),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
@@ -272,6 +274,21 @@ export const feed = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index("feed_crew_idx").on(t.crewId, t.createdAt)],
+);
+
+/** Product events for the pilot dashboard: share clicks, preview views, referral landings. */
+export const events = sqliteTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    crewId: text("crew_id"),
+    userId: text("user_id"),
+    sessionId: text("session_id"),
+    payload: text("payload").notNull().default("{}"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("events_kind_idx").on(t.kind, t.createdAt), index("events_crew_idx").on(t.crewId)],
 );
 
 export type User = typeof users.$inferSelect;
