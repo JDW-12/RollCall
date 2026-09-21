@@ -13,11 +13,21 @@ declare global {
   var __rollcallDb: Cached | undefined;
 }
 
-const sandbox = !process.env.DATABASE_URL && !!process.env.VERCEL;
+/**
+ * A file-based DATABASE_URL on Vercel (typically the placeholder from .env.example imported by the
+ * dashboard) would point at a read-only filesystem, so it is treated as "no database" rather than crashing.
+ */
+function usableDatabaseUrl(): string | undefined {
+  const url = process.env.DATABASE_URL;
+  if (!url) return undefined;
+  if (process.env.VERCEL && url.startsWith("file:") && !url.startsWith("file:/tmp")) return undefined;
+  return url;
+}
+const sandbox = !usableDatabaseUrl() && !!process.env.VERCEL;
 
 function resolveUrl(): string {
   // On Vercel with no database configured, run as a throwaway sandbox in /tmp (see src/lib/env.ts).
-  const url = process.env.DATABASE_URL ?? (sandbox ? "file:/tmp/rollcall-sandbox.db" : "file:./data/rollcall.db");
+  const url = usableDatabaseUrl() ?? (sandbox ? "file:/tmp/rollcall-sandbox.db" : "file:./data/rollcall.db");
   if (url.startsWith("file:")) {
     const rel = url.slice("file:".length);
     const abs = path.isAbsolute(rel) ? rel : path.join(/*turbopackIgnore: true*/ process.cwd(), rel);

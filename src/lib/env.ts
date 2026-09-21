@@ -7,12 +7,23 @@ import { headers } from "next/headers";
  * a cold start. Setting DATABASE_URL turns all of this off.
  */
 export function isSandbox(): boolean {
-  return !process.env.DATABASE_URL && !!process.env.VERCEL;
+  const url = process.env.DATABASE_URL;
+  const usable = !!url && !(process.env.VERCEL && url.startsWith("file:") && !url.startsWith("file:/tmp"));
+  return !usable && !!process.env.VERCEL;
+}
+
+/** NEXT_PUBLIC_APP_URL is only trusted when it is a real origin; a localhost placeholder on Vercel is ignored. */
+function publicUrl(): string | undefined {
+  const u = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (!u) return undefined;
+  if (process.env.VERCEL && /localhost|127\.0\.0\.1/.test(u)) return undefined;
+  return u;
 }
 
 /** Public origin for share links and cards: explicit env first, then Vercel's URLs, then the request host. */
 export async function appUrl(): Promise<string> {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const configured = publicUrl();
+  if (configured) return configured;
   if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   // Preview deployments: the branch alias is stable across pushes, the deployment URL is not.
   if (process.env.VERCEL_BRANCH_URL) return `https://${process.env.VERCEL_BRANCH_URL}`;
