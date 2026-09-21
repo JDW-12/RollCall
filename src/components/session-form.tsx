@@ -33,7 +33,7 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
           <input name="title" required minLength={2} maxLength={60} defaultValue={session?.title ?? ""} placeholder={sport.label === "Football" ? "Tuesday 5s" : `${sport.label} ${sport.noun}`} />
         </Field>
         <Field label="Notes">
-          <textarea name="notes" rows={2} maxLength={500} defaultValue={session?.notes ?? ""} placeholder="Bibs are in Sam's car. Bring change for the barrier." />
+          <textarea name="notes" rows={2} maxLength={500} defaultValue={session?.notes ?? ""} placeholder="Bibs are in Josh's car. Bring change for the barrier." />
         </Field>
       </Block>
 
