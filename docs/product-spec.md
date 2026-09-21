@@ -56,7 +56,7 @@ Every session and every player page has an Open Graph image. Sharing the link in
 ### Side games
 - **Teams (football):** balanced on form with a seeded snake draft and a swap pass. Re-pick gives a different fair split.
 - **Americano (padel):** rotating partnerships, sit-outs shared when not a multiple of four, scores per match, standings by points then difference.
-- **Stableford (golf):** UK society scoring from playing handicap and stroke index. Each player enters their own gross; organisers can edit anyone's and the course. The course card comes from a shared library (par and stroke index per course and tee), a course-data API when configured, a scanned photo of the paper card, or the two rows typed in. Corrections update the library so the next crew gets the right card.
+- **Stableford (golf):** UK society scoring from playing handicap and stroke index. Each player enters their own gross hole by hole on a phone-first scorer (stepper per hole, first tap lands on par, shots received shown, points and front/back totals live); organisers can edit anyone's and the course. Once cards are in, the session's share card becomes the leaderboard. The course card comes from a shared library (par and stroke index per course and tee), a course-data API when configured, a scanned photo of the paper card, or the two rows typed in. Corrections update the library so the next crew gets the right card.
 - **Podium predictor (race weekends):** P1 to P3 plus first retirement. Locks at session start. Free to play, no prizes. Exact spot 10, on podium 4, first out 5.
 
 ## Growth loop

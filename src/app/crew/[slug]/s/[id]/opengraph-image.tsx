@@ -3,6 +3,7 @@ import { findCrewBySlug } from "@/lib/access";
 import { getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { summarise } from "@/domain/rsvp";
+import { stablefordTotals, type StablefordCard } from "@/domain/stableford";
 import { fmtLong, plural } from "@/lib/format";
 import { OG, OG_MARK_PATH, ogFonts } from "@/lib/og";
 
@@ -56,8 +57,23 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     .slice(0, 9)
     .join(" · ");
 
-  const status = played ? (motm ? sport.ratings[0].label : "Played") : s.full ? "Full · reserves open" : plural(s.spotsLeft, "spot") + " left";
-  const line = played ? (motm ?? `${turnedUp} turned up`) : firstNames || "Be the first in";
+  // Golf: once cards are in, the share card is the leaderboard.
+  const stableford = bundle.games.find((g) => g.kind === "stableford");
+  const board = stableford ? stablefordTotals(JSON.parse(stableford.data) as StablefordCard).filter((t) => t.holesPlayed > 0) : [];
+  const leader = board[0];
+  const first = (id: string) => members.find((m) => m.id === id)?.name.split(" ")[0] ?? "?";
+
+  const status = leader ? (played ? "Stableford · final" : "Stableford · live") : played ? (motm ? sport.ratings[0].label : "Played") : s.full ? "Full · reserves open" : plural(s.spotsLeft, "spot") + " left";
+  const line = leader
+    ? board
+        .slice(0, 4)
+        .map((t) => `${first(t.userId)} ${t.points}`)
+        .join(" · ")
+    : played
+      ? (motm ?? `${turnedUp} turned up`)
+      : firstNames || "Be the first in";
+  const tileNumber = leader ? leader.points : played ? turnedUp : s.in;
+  const tileLabel = leader ? `pts · ${first(leader.userId)}` : played ? "turned up" : `in / ${session.capacity}`;
 
   return new ImageResponse(
     (
@@ -101,8 +117,8 @@ export default async function Image({ params }: { params: Promise<{ slug: string
                 boxShadow: `0 30px 80px -20px ${OG.glow}`,
               }}
             >
-              <div style={{ display: "flex", fontSize: 150, fontWeight: 800, lineHeight: 0.88, letterSpacing: -3 }}>{played ? turnedUp : s.in}</div>
-              <div style={{ display: "flex", ...label, color: played ? OG.pitch : OG.pitchInk, opacity: played ? 1 : 0.8 }}>{played ? "turned up" : `in / ${session.capacity}`}</div>
+              <div style={{ display: "flex", fontSize: 150, fontWeight: 800, lineHeight: 0.88, letterSpacing: -3 }}>{tileNumber}</div>
+              <div style={{ display: "flex", ...label, color: played ? OG.pitch : OG.pitchInk, opacity: played ? 1 : 0.8 }}>{tileLabel}</div>
             </div>
           </div>
         </div>

@@ -1,12 +1,13 @@
 import type { Game } from "@/db/schema";
-import { defaultHoles, stablefordPoints, stablefordTotals, type StablefordCard } from "@/domain/stableford";
+import { defaultHoles, stablefordTotals, type StablefordCard } from "@/domain/stableford";
 import type { Member } from "@/lib/queries";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconGolf } from "@/components/icons";
-import { Field, Panel, cls } from "@/components/ui";
+import { Panel, cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
 import { courseLabel } from "@/domain/courses";
 import { CoursePicker } from "./course-picker";
+import { HoleScorer } from "./hole-scorer";
 
 export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId, providerOn = false, scanOn = false }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string; providerOn?: boolean; scanOn?: boolean }) {
   const card: StablefordCard = game ? (JSON.parse(game.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
@@ -72,56 +73,7 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
             <span>{uid === myId ? "Your card" : `${name(uid)}'s card`}</span>
             <span className="eyebrow">{card.strokes[uid] ? "Saved" : "Empty"}</span>
           </summary>
-          <ActionForm key={courseKey} action={saveStableford} className="px-3 pb-3">
-            <input type="hidden" name="sessionId" value={sessionId} />
-            <input type="hidden" name="userId" value={uid} />
-            <Field label="Playing handicap">
-              <input name="handicap" type="number" min={0} max={54} inputMode="numeric" defaultValue={card.handicaps[uid] ?? ""} className="max-w-[120px] display text-xl font-bold tnum" />
-            </Field>
-            <div className="overflow-x-auto">
-              <table className="text-xs font-mono tnum">
-                <thead>
-                  <tr className="eyebrow">
-                    <th className="text-left pr-2 font-normal">Hole</th>
-                    {card.holes.map((h) => (
-                      <th key={h.number} className="px-0.5 font-normal">
-                        {h.number}
-                      </th>
-                    ))}
-                  </tr>
-                  <tr className="text-ink-3">
-                    <td className="pr-2">Par / SI</td>
-                    {card.holes.map((h) => (
-                      <td key={h.number} className="px-0.5 text-center">
-                        {h.par}/{h.strokeIndex}
-                      </td>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="pr-2">Gross</td>
-                    {card.holes.map((h, i) => (
-                      <td key={h.number} className="px-0.5">
-                        <input name={`h_${i}`} inputMode="numeric" defaultValue={card.strokes[uid]?.[i] ?? ""} className="w-9 px-0 text-center min-h-9 py-1 font-mono" aria-label={`Hole ${h.number} gross`} />
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="text-pitch font-bold">
-                    <td className="pr-2 text-ink-3 font-normal">Pts</td>
-                    {card.holes.map((h, i) => (
-                      <td key={h.number} className="px-0.5 text-center">
-                        {card.strokes[uid] ? stablefordPoints(card.strokes[uid][i] ?? null, h.par, h.strokeIndex, card.handicaps[uid] ?? 0) : ""}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <SubmitButton variant="secondary" className="self-start" pendingText="Saving…">
-              Save card
-            </SubmitButton>
-          </ActionForm>
+          <HoleScorer key={courseKey} sessionId={sessionId} userId={uid} holes={card.holes} handicap={card.handicaps[uid] ?? null} strokes={card.strokes[uid] ?? null} />
         </details>
       ))}
       {isOrganiser ? (

@@ -60,7 +60,23 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   const yourCard = org.locator("details", { hasText: "Your card" });
   await expect(yourCard.locator('input[aria-label="Hole 9 gross"]')).toBeVisible();
   await expect(yourCard.locator('input[aria-label="Hole 10 gross"]')).toHaveCount(0);
-  await expect(yourCard.getByText("5/1")).toBeVisible();
+  await expect(yourCard.locator("li", { hasText: "SI 1" })).toContainText("Par 5");
+
+  // Score with the stepper: first tap lands on par, off 9 the SI-1 hole gets a shot, points update live.
+  await yourCard.locator('input[aria-label="Playing handicap"]').fill("9");
+  await yourCard.locator('button[aria-label="Hole 1: one more"]').click(); // par 4, a shot on every hole off 9 over nine → 3 pts
+  await yourCard.locator('button[aria-label="Hole 4: one more"]').click(); // par 5 → 5
+  await yourCard.locator('button[aria-label="Hole 4: one more"]').click(); // 6 gross, net 5 → 2 pts
+  await yourCard.locator('button[aria-label="Hole 3: one fewer"]').click(); // par 3 → 2 gross, birdie → 4 pts
+  await expect(yourCard.locator('[aria-label="Hole 1: 3 points"]')).toBeVisible();
+  await expect(yourCard.locator('[aria-label="Hole 4: 2 points"]')).toBeVisible();
+  await expect(yourCard.locator('[aria-label="Hole 3: 4 points"]')).toBeVisible();
+  await yourCard.locator('button:has-text("Save card")').click();
+  // The card folds away once saved; the leaderboard above it shows the result.
+  const table = org.locator("table", { hasText: "Player" });
+  await expect(table.locator("tbody tr").first()).toContainText("Josh Test");
+  await expect(table.locator("tbody tr").first()).toContainText("3 holes");
+  await expect(table.locator("tbody tr").first().locator("td").last()).toHaveText("9");
 
   // A later round finds the card in the library by search and reuses it in one tap.
   await org.goto(org.url().replace(/\/s\/.*$/, ""));
