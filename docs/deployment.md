@@ -22,13 +22,10 @@ If the app runs on Vercel with no `DATABASE_URL`, it starts in sandbox mode: a t
 
 ## Vercel, first deployment from the dashboard
 
-The Vercel GitHub integration is already installed for `jdw-12/remoovals`. Creating the project takes about a minute:
-
-1. vercel.com → Add New → Project → Import `jdw-12/remoovals`.
-2. Project name: whatever the app ends up being called. **Root Directory: `rollcall`.** Framework is detected as Next.js. Leave build settings alone. No environment variables are needed for the sandbox.
-3. Deploy. The first build runs from `main`, which does not contain `rollcall/` yet, so it will fail. That is expected.
-4. Settings → Git → Production Branch: set to `claude/sports-app-market-gap-4r2hks` (or merge that branch into `main`). Redeploy. Every push to that branch now deploys automatically.
-5. Settings → Deployment Protection: turn Vercel Authentication off for the environment you are sharing, otherwise invite links and WhatsApp previews will hit a login wall.
+1. vercel.com → Add New → Project → Import `JDW-12/rollcall`.
+2. Framework is detected as Next.js. Leave the root directory and build settings alone. No environment variables are needed for the sandbox.
+3. Deploy. Every push to `main` deploys automatically from then on.
+4. Settings → Deployment Protection: turn Vercel Authentication off for the environment you are sharing, otherwise invite links and WhatsApp previews will hit a login wall.
 
 Then open `https://<project>.vercel.app/demo`.
 

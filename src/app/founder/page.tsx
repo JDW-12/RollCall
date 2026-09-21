@@ -7,6 +7,7 @@ import { sportOf } from "@/domain/sports";
 import { PlainShell } from "@/components/shell";
 import { PageTitle, Panel, Pill, Stat, cls } from "@/components/ui";
 import { fmtDay } from "@/lib/format";
+import { nowMs } from "@/lib/clock";
 
 export const metadata: Metadata = { title: "Founder" };
 
@@ -17,6 +18,7 @@ export default async function FounderPage() {
   if (!user) redirect("/signin?next=/founder");
   if (!isFounder(user.email)) notFound();
   const m = await founderMetrics();
+  const now = nowMs();
   const maxWeek = Math.max(1, ...m.weekly.map((w) => Math.max(w.pinned, w.played)));
 
   return (
@@ -136,7 +138,7 @@ export default async function FounderPage() {
           </thead>
           <tbody>
             {m.crewRows.map((c) => {
-              const stale = c.lastPinned ? Date.now() - c.lastPinned.getTime() > 14 * 86_400_000 : true;
+              const stale = c.lastPinned ? now - c.lastPinned.getTime() > 14 * 86_400_000 : true;
               return (
                 <tr key={c.id} className="border-t border-line-2">
                   <td className="px-3 py-2 font-semibold">

@@ -22,7 +22,6 @@ Built for the UK. Money in pounds and pence, times in Europe/London, predictions
 Requires Node 22.
 
 ```bash
-cd rollcall
 npm install
 cp .env.example .env
 npm run db:seed        # creates data/rollcall.db and a demo crew with 14 weeks of history
