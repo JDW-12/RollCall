@@ -12,15 +12,18 @@ export function ActionForm({
   children,
   className,
   successMessage,
+  marker,
 }: {
   action: Action;
   children: ReactNode;
   className?: string;
   successMessage?: string;
+  /** Optional data attribute name so helper components can find this form in the DOM. */
+  marker?: string;
 }) {
   const [state, formAction] = useActionState(action, {});
   return (
-    <form action={formAction} className={cls("flex flex-col gap-4", className)}>
+    <form action={formAction} className={cls("flex flex-col gap-4", className)} {...(marker ? { [`data-${marker}`]: "" } : {})}>
       {children}
       {state.error ? (
         <Notice tone="bad">

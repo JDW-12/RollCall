@@ -123,6 +123,16 @@ export async function getFeed(crewId: string, limit = 30): Promise<schema.FeedIt
   return db.select().from(schema.feed).where(eq(schema.feed.crewId, crewId)).orderBy(desc(schema.feed.createdAt)).limit(limit);
 }
 
+export async function venueHistory(crewId: string): Promise<{ venueName: string; venueAddress: string }[]> {
+  const db = await getDb();
+  return db
+    .select({ venueName: schema.sessions.venueName, venueAddress: schema.sessions.venueAddress })
+    .from(schema.sessions)
+    .where(eq(schema.sessions.crewId, crewId))
+    .orderBy(desc(schema.sessions.startsAt))
+    .limit(60);
+}
+
 export async function findCrewByInvite(token: string): Promise<schema.Crew | null> {
   const db = await getDb();
   return (await db.select().from(schema.crews).where(eq(schema.crews.inviteToken, token)).limit(1))[0] ?? null;

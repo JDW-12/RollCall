@@ -5,9 +5,11 @@ import { SPORTS, sportOf, type SportKey } from "@/domain/sports";
 import { fmtDay, pounds, toLocalInput } from "@/lib/format";
 import { SportIcon } from "./icons";
 import { Eyebrow, Field } from "./ui";
+import { VenueChips } from "./venue-chips";
+import type { VenueSuggestion } from "@/domain/venues";
 
 /** Fields for creating or editing a session. Rendered inside an ActionForm. */
-export function SessionFields({ defaultSport, session, crewLateDropHours }: { defaultSport: SportKey; session?: Session; crewLateDropHours: number }) {
+export function SessionFields({ defaultSport, session, crewLateDropHours, venues = [] }: { defaultSport: SportKey; session?: Session; crewLateDropHours: number; venues?: VenueSuggestion[] }) {
   const sport = sportOf(session?.sport ?? defaultSport);
   const chosen = session?.sport ?? defaultSport;
   const nextWeek = new Date(nowMs() + 7 * 86_400_000);
@@ -44,8 +46,14 @@ export function SessionFields({ defaultSport, session, crewLateDropHours }: { de
             <input name="durationMin" type="number" min={15} max={720} step={5} inputMode="numeric" defaultValue={session?.durationMin ?? sport.defaultDurationMin} />
           </Field>
         </div>
+        <VenueChips venues={venues} />
         <Field label="Venue" hint={sport.venueHint}>
-          <input name="venueName" maxLength={80} defaultValue={session?.venueName ?? ""} />
+          <input name="venueName" maxLength={80} defaultValue={session?.venueName ?? ""} list="venue-names" autoComplete="off" />
+          <datalist id="venue-names">
+            {venues.map((v) => (
+              <option key={v.name} value={v.name} />
+            ))}
+          </datalist>
         </Field>
         <Field label="Address or postcode" hint="Optional. Shows on the share card.">
           <input name="venueAddress" maxLength={120} defaultValue={session?.venueAddress ?? ""} autoComplete="off" />

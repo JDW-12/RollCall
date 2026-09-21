@@ -5,6 +5,8 @@ import { getSession } from "@/lib/queries";
 import { CrewShell } from "@/components/shell";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { SessionFields } from "@/components/session-form";
+import { venueHistory } from "@/lib/queries";
+import { venueSuggestions } from "@/domain/venues";
 import { Button, Eyebrow, PageTitle } from "@/components/ui";
 import { cancelSession, updateSession } from "@/lib/actions/session";
 import { isSportKey } from "@/domain/sports";
@@ -22,9 +24,9 @@ export default async function EditSessionPage({ params }: { params: Promise<{ sl
       <PageTitle eyebrow="Organiser" title="Edit session">
         Adding spots promotes people off the reserve list automatically.
       </PageTitle>
-      <ActionForm action={updateSession} className="max-w-md">
+      <ActionForm action={updateSession} className="max-w-md" marker="session-form">
         <input type="hidden" name="sessionId" value={session.id} />
-        <SessionFields defaultSport={isSportKey(crew.sport) ? crew.sport : "football"} session={session} crewLateDropHours={crew.lateDropHours} />
+        <SessionFields defaultSport={isSportKey(crew.sport) ? crew.sport : "football"} session={session} crewLateDropHours={crew.lateDropHours} venues={venueSuggestions(isSportKey(crew.sport) ? crew.sport : "football", await venueHistory(crew.id))} />
         <SubmitButton pendingText="Saving…" className="min-h-14 text-base">
           Save changes
         </SubmitButton>
