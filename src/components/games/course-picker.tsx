@@ -48,10 +48,10 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
 
   async function scan(file: File) {
     setError(null);
-    const fd = new FormData();
-    fd.append("image", file);
     setSearching(true);
+    const fd = new FormData();
     try {
+      fd.append("image", await shrink(file));
       const res = await fetch("/api/courses/scan", { method: "POST", body: fd });
       const body = (await res.json()) as { card?: Omit<Draft, "mode" | "warnings">; warnings?: string[]; error?: string };
       if (!res.ok || !body.card) setError(body.error ?? "Couldn't read that card.");
@@ -147,6 +147,23 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
       {draft ? <DraftCard sessionId={sessionId} draft={draft} onChange={setDraft} /> : null}
     </div>
   );
+}
+
+/** Phone photos run to several MB; the card reads fine at 1600px, and the upload limit is 4 MB. */
+async function shrink(file: File): Promise<Blob> {
+  if (!file.type.startsWith("image/") || file.size < 1_000_000) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d")?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.86));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
 }
 
 function DraftCard({ sessionId, draft, onChange }: { sessionId: string; draft: Draft; onChange: (d: Draft) => void }) {
