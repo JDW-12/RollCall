@@ -15,6 +15,8 @@ export function VenueChips({ venues }: { venues: VenueSuggestion[] }) {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       setter?.call(name, v.name);
       name.dispatchEvent(new Event("input", { bubbles: true }));
+      // Tell the typeahead this value is a pick, not a search, so it doesn't open a dropdown for it.
+      name.dispatchEvent(new CustomEvent("rc:venue-picked", { bubbles: true, detail: v.name }));
     }
     if (addr && v.address) addr.value = v.address;
     name?.focus();

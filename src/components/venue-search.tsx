@@ -45,6 +45,14 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
     return () => clearTimeout(t);
   }, [value, picked]);
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const onPicked = (e: Event) => setPicked(String((e as CustomEvent<string>).detail ?? ""));
+    el.addEventListener("rc:venue-picked", onPicked);
+    return () => el.removeEventListener("rc:venue-picked", onPicked);
+  }, []);
+
   function pick(h: PlaceHit) {
     setPicked(h.name);
     setValue(h.name);

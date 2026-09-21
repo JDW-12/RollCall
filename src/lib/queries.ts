@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { computeTable, type TableRow } from "@/domain/table";
 import { sportOf } from "@/domain/sports";
@@ -141,4 +141,15 @@ export async function findCrewByInvite(token: string): Promise<schema.Crew | nul
 export async function getUser(userId: string): Promise<schema.User | null> {
   const db = await getDb();
   return (await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1))[0] ?? null;
+}
+
+/** Every Stableford card the crew has saved, for season golf stats. */
+export async function golfRounds(crewId: string): Promise<import("@/domain/golf-stats").Round[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ sessionId: schema.sessions.id, title: schema.sessions.title, startsAt: schema.sessions.startsAt, data: schema.games.data })
+    .from(schema.games)
+    .innerJoin(schema.sessions, eq(schema.games.sessionId, schema.sessions.id))
+    .where(and(eq(schema.sessions.crewId, crewId), eq(schema.games.kind, "stableford"), ne(schema.sessions.status, "cancelled")));
+  return rows.map((r) => ({ sessionId: r.sessionId, title: r.title, startsAt: r.startsAt.getTime(), card: JSON.parse(r.data) }));
 }

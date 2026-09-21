@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { optionalCrewPage } from "@/lib/access";
 import { PlayerPreview } from "@/components/previews";
 import { track } from "@/lib/events";
-import { getCrewLedger, getCrewTable, getUser } from "@/lib/queries";
+import { getCrewLedger, getCrewTable, getUser, golfRounds } from "@/lib/queries";
+import { golfStats } from "@/domain/golf-stats";
 import { sportOf } from "@/domain/sports";
 import { turnUpRate } from "@/domain/table";
 import { CrewShell } from "@/components/shell";
@@ -12,7 +13,7 @@ import { PlayerCard } from "@/components/player-card";
 import { ShareButtons } from "@/components/share";
 import { AnimatedNumber } from "@/components/animated-number";
 import { FormDots } from "@/components/sparkline";
-import { IconCoins, IconFlame, IconTrophy } from "@/components/icons";
+import { IconCoins, IconFlame, IconGolf, IconTrophy } from "@/components/icons";
 import { PageTitle, Panel, Stat, cls } from "@/components/ui";
 import { pounds } from "@/lib/format";
 
@@ -48,6 +49,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   const hasRate = row.expected + row.lateDrops > 0;
   const rate = Math.round(turnUpRate(row) * 100);
   const maxVotes = Math.max(1, ...sport.ratings.map((c) => row.votes[c.key] ?? 0));
+  const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
 
   return (
     <CrewShell crew={crew} user={user} active="table">
@@ -77,6 +79,41 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             />
             <Stat label="Sick notes" value={<AnimatedNumber value={row.sickNotes} />} tone={row.sickNotes > 0 ? "bad" : undefined} sub={`${row.lateDrops} late · ${row.noShows} no-show`} />
           </Panel>
+
+          {golf ? (
+            <Panel className="p-4 flex flex-col gap-3 anim-rise-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-md bg-ground-2 border border-line flex items-center justify-center shrink-0 text-pitch">
+                    <IconGolf size={16} />
+                  </span>
+                  <div className="eyebrow">Stableford</div>
+                </div>
+                {golf.handicap !== null ? <span className="eyebrow">Off {golf.handicap}</span> : null}
+              </div>
+              {golf.rounds ? (
+                <div className="grid grid-cols-3 gap-x-3 gap-y-4">
+                  <Stat label="Rounds" value={<AnimatedNumber value={golf.rounds} />} />
+                  <Stat label="Avg pts" value={<AnimatedNumber value={golf.avg ?? 0} decimals={1} />} tone={(golf.avg ?? 0) >= 36 ? "good" : undefined} />
+                  <Stat label="Wins" value={<AnimatedNumber value={golf.wins} />} tone={golf.wins > 0 ? "good" : undefined} />
+                  <div className="col-span-3 flex items-end justify-between gap-3">
+                    <div className="text-sm">
+                      <span className="text-ink-3">Best </span>
+                      <span className="display text-xl font-bold tnum">{golf.best?.points}</span>
+                      <span className="text-ink-3"> · {golf.best?.title}</span>
+                    </div>
+                    <div className="flex items-end gap-1 h-8" aria-label={`Last rounds: ${golf.recent.join(", ")} points`}>
+                      {golf.recent.map((p, i) => (
+                        <span key={i} className={cls("w-3 rounded-sm", p >= 36 ? "bg-pitch" : p >= 30 ? "bg-pitch-deep" : "bg-ink-3")} style={{ height: `${Math.max(4, Math.min(32, p * 0.7))}px` }} title={`${p} pts`} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-ink-2">No complete cards yet. Every hole in and the round counts here.</p>
+              )}
+            </Panel>
+          ) : null}
 
           <Panel className="p-4 flex flex-col gap-3 anim-rise-3">
             <div className="flex items-center gap-2">

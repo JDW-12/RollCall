@@ -38,4 +38,10 @@ await page.screenshot({ path: `${out}/scorer-saved.png` });
 const og = await ctx.request.get(page.url().split("?")[0] + "/opengraph-image");
 const fs = await import("node:fs");
 fs.writeFileSync(`${out}/og-golf.png`, Buffer.from(await og.body()));
+// A brand-new crew has no table rows yet, so look the organiser's id up in the local database.
+const { createClient } = await import("@libsql/client");
+const row = (await createClient({ url: "file:./data/shots.db" }).execute("select id from users order by created_at limit 1")).rows[0];
+await page.goto(page.url().replace(/\/s\/.*$/, `/players/${row.id}`), { waitUntil: "networkidle" });
+await page.locator("section", { hasText: "Stableford" }).first().scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${out}/player-golf.png` });
 await browser.close();
