@@ -3,7 +3,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireCrewPage } from "@/lib/access";
 import { getCrewTable, getSessionBundle, listSessions } from "@/lib/queries";
-import { sportOf, type RatingCategory } from "@/domain/sports";
+import type { RatingCategory } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { POINTS, turnUpRate, type TableRow } from "@/domain/table";
 import { CrewShell } from "@/components/shell";
 import { Avatar } from "@/components/avatar";
@@ -114,18 +115,18 @@ export default async function TablePage({ params }: { params: Promise<{ slug: st
   const { slug } = await params;
   const { crew, user } = await requireCrewPage(slug);
   const { rows, members } = await getCrewTable(crew);
-  const sport = sportOf(crew.sport);
-  const top = sport.ratings[0];
+  const cats = ratingsFor(crew.sport, crew.ratings);
+  const top = cats[0];
   const sick = [...rows].filter((r) => r.sickNotes > 0).sort((a, b) => b.sickNotes - a.sickNotes).slice(0, 3);
   const streaks = [...rows].filter((r) => r.streak >= 2).sort((a, b) => b.streak - a.streak).slice(0, 3);
   const played = rows.reduce((t, r) => t + r.played, 0);
   const live = !(played === 0 && rows.every((r) => r.sickNotes === 0));
-  const before = live ? await previousRanks(crew.id, rows, sport.ratings) : null;
+  const before = live ? await previousRanks(crew.id, rows, cats) : null;
 
   return (
     <CrewShell crew={crew} user={user} active="table">
       <PageTitle eyebrow={crew.seasonName} title="The table" action={<LinkButton href={`/crew/${crew.slug}/season`} variant="secondary" className="min-h-9 px-3 text-sm">Season awards</LinkButton>}>
-        +3 for turning up, +{top.points} per {top.label.toLowerCase()} vote, +1 per {sport.ratings[1].label.toLowerCase()} vote, −2 late drop, −3 no-show.
+        +3 for turning up, +{top.points} per {top.label.toLowerCase()} vote, +1 per {cats[1].label.toLowerCase()} vote, −2 late drop, −3 no-show.
       </PageTitle>
       {!live ? (
         <Panel className="p-8 flex flex-col items-center text-center gap-3 anim-rise">

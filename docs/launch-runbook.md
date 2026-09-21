@@ -111,7 +111,7 @@ Do not invite a second crew until the first one has done three sessions without 
 All three work without keys in a reduced form. Add them when the reduced form starts to bite.
 
 1. **Google Places** (venue names and addresses as you type). Google Cloud Console → create a project → enable "Places API (New)" → Credentials → API key → restrict it to Places API (New). Set `GOOGLE_MAPS_API_KEY`. Without it the app uses the free OpenStreetMap geocoder, which is weaker on business names like "Powerleague".
-2. **Golf course database.** golfcourseapi.com → sign up → API key. Set `GOLF_COURSE_API_KEY`. Without it, course search only covers cards crews have already typed or scanned.
+2. **Golf course database.** golfcourseapi.com → sign up → API key. Set `GOLF_COURSE_API_KEY`. This is the one that makes the golf venue finder useful: with it, typing a club name on a golf session offers real courses with pars, stroke indexes and yardage, and picking one loads the card. Without it, course search only covers cards crews have already typed or scanned.
 3. **Scorecard scanning.** console.anthropic.com → API keys → create. Set `ANTHROPIC_API_KEY`. Without it the "Scan the paper card" option is hidden and organisers type the two rows off the card instead.
 
 Redeploy after adding any of them.

@@ -3,6 +3,7 @@ import type { Crew, Rsvp, Session } from "@/db/schema";
 import type { Member } from "@/lib/queries";
 import type { TableRow } from "@/domain/table";
 import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { summarise } from "@/domain/rsvp";
 import { previewShare } from "@/domain/money";
 import { fmtLong, pounds, relativeDay } from "@/lib/format";
@@ -97,7 +98,7 @@ export function PlayerPreview({ crew, member, row, rank }: { crew: Crew; member:
           {crew.name} · {sport.label} · #{rank}
         </div>
         <div className="max-w-[340px] mx-auto w-full">
-          <PlayerCard name={member.name} hue={member.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} points={row.points} season={crew.seasonName} />
+          <PlayerCard name={member.name} hue={member.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={ratingsFor(crew.sport, crew.ratings)} points={row.points} season={crew.seasonName} />
         </div>
         <p className="text-sm text-ink-2 text-center">
           Peer-rated by the people who were actually there. {row.played} played, {row.streak} in a row, {row.sickNotes} sick note{row.sickNotes === 1 ? "" : "s"}.

@@ -76,6 +76,8 @@ export const crews = sqliteTable(
     stripeChargesEnabled: integer("stripe_charges_enabled", { mode: "boolean" }).notNull().default(false),
     /** Secret in the crew's calendar-feed URL. Rotates with the invite link. */
     calendarToken: text("calendar_token"),
+    /** JSON list of the crew's own vote categories (see src/domain/ratings.ts). Null means the sport's defaults. */
+    ratings: text("ratings"),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [

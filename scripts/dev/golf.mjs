@@ -30,8 +30,12 @@ const card = page.locator("details", { hasText: "Your card" });
 await card.locator('input[aria-label="Playing handicap"]').fill("14");
 const scores = [5, 4, 3, 6, 4, 5, 2, 4, 5, 4, 4, 5, 5, 4, 6, 3, 4, 5];
 for (let i = 0; i < scores.length; i++) await card.locator(`input[aria-label="Hole ${i + 1} gross"]`).fill(String(scores[i]));
+await card.locator('input[aria-label="Longest drive in yards"]').fill("265");
+await card.locator('input[aria-label="Balls lost"]').fill("3");
 await card.locator("ol").scrollIntoViewIfNeeded();
 await page.screenshot({ path: `${out}/scorer.png` });
+await card.locator('button:has-text("Save card")').scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${out}/scorer-extras.png` });
 await card.locator('button:has-text("Save card")').click();
 await page.locator("table", { hasText: "Player" }).waitFor();
 await page.locator("section", { hasText: "Stableford" }).last().scrollIntoViewIfNeeded();
@@ -42,7 +46,22 @@ fs.writeFileSync(`${out}/og-golf.png`, Buffer.from(await og.body()));
 // A brand-new crew has no table rows yet, so look the organiser's id up in the local database.
 const { createClient } = await import("@libsql/client");
 const row = (await createClient({ url: "file:./data/shots.db" }).execute("select id from users order by created_at limit 1")).rows[0];
-await page.goto(page.url().replace(/\/s\/.*$/, `/players/${row.id}`), { waitUntil: "networkidle" });
+const crewUrl = page.url().replace(/\/s\/.*$/, "");
+await page.goto(`${crewUrl}/players/${row.id}`, { waitUntil: "networkidle" });
+await page.screenshot({ path: `${out}/player-golf-card.png` });
 await page.locator("section", { hasText: "Stableford" }).first().scrollIntoViewIfNeeded();
 await page.screenshot({ path: `${out}/player-golf.png` });
+// Venue finder on a new golf session: the library course shows up with its card.
+await page.goto(`${crewUrl}/sessions/new`, { waitUntil: "networkidle" });
+await page.check('input[name="sport"][value="golf"]');
+await page.locator('input[name="venueName"]').pressSequentially("Richmond", { delay: 30 });
+await page.locator('[role="option"]').first().waitFor();
+await page.locator('input[name="venueName"]').scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${out}/venue-course.png` });
+await page.locator('[role="option"]').first().click();
+await page.screenshot({ path: `${out}/venue-course-picked.png` });
+// Settings: what the crew votes on.
+await page.goto(`${crewUrl}/settings`, { waitUntil: "networkidle" });
+await page.locator("form[data-ratings-form]").scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${out}/settings-votes.png` });
 await browser.close();

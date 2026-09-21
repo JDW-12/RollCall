@@ -10,7 +10,8 @@ import { cookies } from "next/headers";
 import { track } from "@/lib/events";
 import { requireCrewAction } from "@/lib/access";
 import { hueFrom, newId, newToken, slugify } from "@/lib/ids";
-import { isSportKey } from "@/domain/sports";
+import { MAX_RATINGS, RatingsError, buildRatings, serialiseRatings } from "@/domain/ratings";
+import { isSportKey, sportOf } from "@/domain/sports";
 import { findCrewByInvite } from "@/lib/queries";
 import { act, addFeed, quiet, str, uiError, type ActionState } from "./shared";
 
@@ -141,6 +142,30 @@ export async function updateCrew(_prev: ActionState, fd: FormData): Promise<Acti
     await db.update(schema.crews).set(input).where(eq(schema.crews.id, crew.id));
     revalidatePath(`/crew/${crew.slug}`, "layout");
     return { ok: true, message: "Saved." };
+  });
+}
+
+/** The crew's own things to vote on. Up to five; the first two carry points. Empty label rows are dropped. */
+export async function updateRatings(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  return act(async () => {
+    const { crew } = await requireCrewAction(str(fd, "crewId"), { organiser: true });
+    const db = await getDb();
+    if (str(fd, "reset") === "1") {
+      await db.update(schema.crews).set({ ratings: null }).where(eq(schema.crews.id, crew.id));
+      revalidatePath(`/crew/${crew.slug}`, "layout");
+      return { ok: true, message: "Back to the sport's defaults." };
+    }
+    const drafts = Array.from({ length: MAX_RATINGS }, (_, i) => ({ label: str(fd, `label_${i}`), prompt: str(fd, `prompt_${i}`), stat: str(fd, `stat_${i}`) }));
+    let cats;
+    try {
+      cats = buildRatings(drafts);
+    } catch (e) {
+      if (e instanceof RatingsError) uiError(e.message);
+      throw e;
+    }
+    await db.update(schema.crews).set({ ratings: serialiseRatings(cats) }).where(eq(schema.crews.id, crew.id));
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    return { ok: true, message: `Saved. ${cats.length} things to vote on after every ${sportOf(crew.sport).noun}.` };
   });
 }
 

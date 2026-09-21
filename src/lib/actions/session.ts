@@ -8,11 +8,14 @@ import { getDb, schema } from "@/db/client";
 import { requireCrewAction } from "@/lib/access";
 import { newId } from "@/lib/ids";
 import { fromLocalInput, parsePounds } from "@/lib/format";
-import { isSportKey, sportOf } from "@/domain/sports";
+import { isSportKey } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { applyCapacityChange, applyRsvp, playing, type RsvpRow } from "@/domain/rsvp";
 import { settleSession } from "@/domain/money";
 import { getSession, getSessionBundle, listMembers } from "@/lib/queries";
 import { act, addFeed, quiet, str, uiError, type ActionState } from "./shared";
+import { resolveCourseRef } from "@/lib/golf-courses";
+import { defaultHoles, resizeStrokes, type StablefordCard } from "@/domain/stableford";
 import type { Db } from "@/db/client";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -69,6 +72,7 @@ export async function createSession(_prev: ActionState, fd: FormData): Promise<A
       await db.insert(schema.rsvps).values({ id: newId(), sessionId: id, userId: user.id, status: "in", queuedAt: now, respondedAt: now });
     }
     await addFeed(crew.id, id, "session_pinned", { by: user.id, title: input.title, startsAt: input.startsAt.getTime() });
+    await applyCourseRef(id, input.sport, str(fd, "courseRef"), user.id);
     target = `/crew/${crew.slug}/s/${id}?pinned=1`;
   });
   if (r.error) return r;
@@ -95,6 +99,7 @@ export async function updateSession(_prev: ActionState, fd: FormData): Promise<A
       return res.changes.map((c) => c.userId);
     }, { behavior: "immediate" });
     for (const userId of promoted) await addFeed(crew.id, session.id, "promoted", { userId });
+    await applyCourseRef(session.id, input.sport, str(fd, "courseRef"), (await requireCrewAction(session.crewId)).user.id);
     revalidatePath(`/crew/${crew.slug}`, "layout");
     target = `/crew/${crew.slug}/s/${session.id}`;
   });
@@ -118,6 +123,33 @@ export async function cancelSession(fd: FormData): Promise<void> {
     target = `/crew/${crew.slug}`;
   });
   if (target) redirect(target);
+}
+
+/**
+ * The venue finder on a golf session can hand back a course reference ("library:<id>" or "api:<ref>").
+ * When it does, the Stableford card is set up with that course's pars, stroke indexes and yards, so the
+ * organiser never has to open the picker. Existing scores are kept and re-sized if the hole count changes.
+ */
+async function applyCourseRef(sessionId: string, sport: string, ref: string, userId: string): Promise<void> {
+  if (sport !== "golf" || !ref) return;
+  const m = /^(library|api):(.+)$/.exec(ref);
+  if (!m) return;
+  try {
+    const picked = await resolveCourseRef(m[1] as "library" | "api", m[2], userId);
+    if (!picked) return;
+    const db = await getDb();
+    const existing = (await db.select().from(schema.games).where(and(eq(schema.games.sessionId, sessionId), eq(schema.games.kind, "stableford"))).limit(1))[0];
+    const card: StablefordCard = existing ? (JSON.parse(existing.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
+    card.holes = picked.holes;
+    card.course = picked.course;
+    card.strokes = resizeStrokes(card.strokes, card.holes.length);
+    const now = new Date();
+    if (existing) await db.update(schema.games).set({ data: JSON.stringify(card), updatedAt: now }).where(eq(schema.games.id, existing.id));
+    else await db.insert(schema.games).values({ id: newId(), sessionId, kind: "stableford", data: JSON.stringify(card), createdAt: now, updatedAt: now });
+  } catch (e) {
+    // A course that fails to resolve must not lose the session; the organiser can pick it in the round.
+    console.error("course ref failed", e);
+  }
 }
 
 function toRow(r: schema.Rsvp): RsvpRow {
@@ -280,7 +312,7 @@ export async function rate(_prev: ActionState, fd: FormData): Promise<ActionStat
     if (session.status !== "played") uiError("You can rate once the organiser has confirmed who played.");
     const attended = new Set(attendance.filter((a) => a.attended).map((a) => a.userId));
     if (!attended.has(user.id)) uiError("Only people who played can rate.");
-    const cats = sportOf(session.sport).ratings;
+    const cats = ratingsFor(crew.sport, crew.ratings);
     const db = await getDb();
     const now = new Date();
     const values: (typeof schema.ratings.$inferInsert)[] = [];

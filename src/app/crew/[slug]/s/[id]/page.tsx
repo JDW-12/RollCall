@@ -9,6 +9,7 @@ import { SessionPreview } from "@/components/previews";
 import { track } from "@/lib/events";
 import { getCrewLedger, getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { playing, reserves, summarise } from "@/domain/rsvp";
 import { previewShare } from "@/domain/money";
 import { CrewShell } from "@/components/shell";
@@ -77,7 +78,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const mapsHref = session.venueAddress ? `https://maps.google.com/?q=${encodeURIComponent(session.venueAddress)}` : session.venueName ? `https://maps.google.com/?q=${encodeURIComponent(session.venueName)}` : null;
 
   // Awards: most votes per category.
-  const awards = sport.ratings.map((c) => {
+  const cats = ratingsFor(crew.sport, crew.ratings);
+  const awards = cats.map((c) => {
     const counts = new Map<string, number>();
     for (const r of ratings) if (r.category === c.key) counts.set(r.rateeId, (counts.get(r.rateeId) ?? 0) + 1);
     const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
@@ -87,7 +89,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
 
   const shareText =
     session.status === "played"
-      ? `${session.title}: ${attended.length} turned up. ${awards[0].userId ? `${sport.ratings[0].label}: ${member(awards[0].userId)?.name}.` : ""}`
+      ? `${session.title}: ${attended.length} turned up. ${awards[0].userId ? `${cats[0].label}: ${member(awards[0].userId)?.name}.` : ""}`
       : `${session.title} · ${fmtLong(session.startsAt)}${session.venueName ? ` · ${session.venueName}` : ""}. ${sum.spotsLeft > 0 ? `${sum.spotsLeft} spots left, tap in:` : "Full, join the reserves:"}`;
 
   const charges = ledger.filter((l) => l.kind === "charge");

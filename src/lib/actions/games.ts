@@ -10,7 +10,7 @@ import { balanceTeams } from "@/domain/teams";
 import { generateAmericano, type Americano } from "@/domain/americano";
 import { defaultHoles, resizeStrokes, type StablefordCard } from "@/domain/stableford";
 import { CourseError, validateHoles, type CourseCard } from "@/domain/courses";
-import { correctCourse, countUse, getCourse, resolveProviderCourse, upsertCourse } from "@/lib/golf-courses";
+import { correctCourse, resolveCourseRef, upsertCourse } from "@/lib/golf-courses";
 import { DEFAULT_GRID, type PredictorGame, type Prediction } from "@/domain/predictor";
 import { playing } from "@/domain/rsvp";
 import { act, addFeed, str, uiError, type ActionState } from "./shared";
@@ -110,6 +110,7 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
             number: h.number,
             par: Number(str(fd, `par_${i}`)) || h.par,
             strokeIndex: Number(str(fd, `si_${i}`)) || h.strokeIndex,
+            yards: h.yards,
           })),
         );
       } catch (e) {
@@ -127,6 +128,13 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
         return Math.max(1, Math.min(15, Number(v) || 0)) || null;
       });
       card.strokes[targetUser] = strokes;
+      const drive = str(fd, "longestDrive");
+      const lost = str(fd, "ballsLost");
+      card.extras ??= {};
+      card.extras[targetUser] = {
+        longestDriveYards: drive === "" ? null : Math.max(0, Math.min(450, Number(drive) || 0)) || null,
+        ballsLost: lost === "" ? null : Math.max(0, Math.min(60, Number(lost) || 0)),
+      };
     }
     await upsertGame(bundle.session.id, "stableford", card);
     revalidatePath(`/crew/${ctx.crew.slug}/s/${bundle.session.id}`);
@@ -146,18 +154,11 @@ export async function setCourse(_prev: ActionState, fd: FormData): Promise<Actio
     const card: StablefordCard = existing ? (JSON.parse(existing.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
     const mode = str(fd, "mode");
     try {
-      if (mode === "library") {
-        const row = await getCourse(str(fd, "ref"));
-        if (!row) uiError("That course isn't in the library any more.");
-        card.holes = validateHoles(JSON.parse(row.holes));
-        card.course = { id: row.id, name: row.name, tee: row.tee };
-        await countUse(row.id);
-      } else if (mode === "api") {
-        const hit = await resolveProviderCourse(str(fd, "ref"));
-        if (!hit) uiError("Couldn't fetch that course. Try the search again.");
-        const row = await upsertCourse(hit, { source: "api", externalId: hit.ref, userId: ctx.user.id });
-        card.holes = validateHoles(JSON.parse(row.holes));
-        card.course = { id: row.id, name: row.name, tee: row.tee };
+      if (mode === "library" || mode === "api") {
+        const picked = await resolveCourseRef(mode, str(fd, "ref"), ctx.user.id);
+        if (!picked) uiError(mode === "library" ? "That course isn't in the library any more." : "Couldn't fetch that course. Try the search again.");
+        card.holes = picked.holes;
+        card.course = picked.course;
       } else if (mode === "manual" || mode === "scan") {
         const holes = validateHoles(JSON.parse(str(fd, "holes") || "[]"));
         const typed: CourseCard = { name: str(fd, "name"), club: str(fd, "club"), address: str(fd, "address"), tee: str(fd, "tee"), holes };

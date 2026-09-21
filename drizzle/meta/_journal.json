@@ -43,6 +43,13 @@
       "when": 1790013666149,
       "tag": "0005_golf_courses",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790027602610,
+      "tag": "0006_crew_ratings",
+      "breakpoints": true
     }
   ]
 }

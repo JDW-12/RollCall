@@ -1,4 +1,5 @@
 import { stablefordTotals, type StablefordCard } from "./stableford";
+import { roundHighlights, type HoleResult } from "./golf-highlights";
 
 /**
  * Season golf stats from the Stableford cards a crew has saved. A round counts once every hole on
@@ -15,14 +16,34 @@ export type GolfStats = {
   /** Points from the last five complete rounds, oldest first. */
   recent: number[];
   handicap: number | null;
+  /** Hole results across every card, complete or not: an ace on a nine-hole knock counts. */
+  results: Record<HoleResult, number>;
+  /** Best single hole of the season. */
+  bestHole: { result: HoleResult; hole: number; title: string } | null;
+  longestDrive: { yards: number; title: string } | null;
+  ballsLost: number;
 };
+
+const NO_RESULTS: Record<HoleResult, number> = { holeInOne: 0, albatross: 0, eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0, worse: 0 };
 
 export function golfStats(rounds: Round[], userId: string): GolfStats {
   const ordered = [...rounds].sort((a, b) => a.startsAt - b.startsAt);
   const mine: { points: number; title: string }[] = [];
   let wins = 0;
   let handicap: number | null = null;
+  const results = { ...NO_RESULTS };
+  let bestHole: GolfStats["bestHole"] = null;
+  let bestToPar = 1;
+  let longestDrive: GolfStats["longestDrive"] = null;
+  let ballsLost = 0;
   for (const r of ordered) {
+    const hl = roundHighlights(r.card).find((p) => p.userId === userId);
+    if (hl) {
+      for (const k of Object.keys(results) as HoleResult[]) results[k] += hl.counts[k];
+      if (hl.best && hl.best.toPar < bestToPar) [bestToPar, bestHole] = [hl.best.toPar, { result: hl.best.result, hole: hl.best.hole, title: r.title }];
+      if (hl.longestDriveYards && (!longestDrive || hl.longestDriveYards > longestDrive.yards)) longestDrive = { yards: hl.longestDriveYards, title: r.title };
+      ballsLost += hl.ballsLost ?? 0;
+    }
     const complete = stablefordTotals(r.card).filter((t) => t.gross !== null);
     const me = complete.find((t) => t.userId === userId);
     if (r.card.handicaps[userId] !== undefined) handicap = r.card.handicaps[userId];
@@ -40,5 +61,9 @@ export function golfStats(rounds: Round[], userId: string): GolfStats {
     wins,
     recent: mine.slice(-5).map((x) => x.points),
     handicap,
+    results,
+    bestHole,
+    longestDrive,
+    ballsLost,
   };
 }

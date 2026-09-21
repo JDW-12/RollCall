@@ -2,7 +2,11 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { PlaceHit } from "@/domain/places";
-import { IconPin } from "@/components/icons";
+import type { CourseHit } from "@/domain/courses";
+import { courseLabel, coursePar } from "@/domain/courses";
+import { IconGolf, IconPin } from "@/components/icons";
+
+type Hit = PlaceHit & { course?: CourseHit };
 
 /**
  * Venue name input with an address finder underneath. Typing looks the place up; picking a
@@ -11,7 +15,8 @@ import { IconPin } from "@/components/icons";
  */
 export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string; hint?: string }) {
   const [value, setValue] = useState(defaultValue);
-  const [found, setHits] = useState<PlaceHit[]>([]);
+  const [found, setHits] = useState<Hit[]>([]);
+  const [course, setCourse] = useState<CourseHit | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [picked, setPicked] = useState(defaultValue);
@@ -31,10 +36,15 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
       const form = inputRef.current?.form;
       const sport = form ? String(new FormData(form).get("sport") ?? "") : "";
       try {
-        const res = await fetch(`/api/places?q=${encodeURIComponent(term)}&sport=${encodeURIComponent(sport)}`, { signal: ac.signal });
-        const body = (await res.json()) as { hits?: PlaceHit[] };
+        // Golf: the course database first (it carries the card), then places for anything else.
+        const [places, courses] = await Promise.all([
+          fetch(`/api/places?q=${encodeURIComponent(term)}&sport=${encodeURIComponent(sport)}`, { signal: ac.signal }).then((r) => r.json() as Promise<{ hits?: PlaceHit[] }>),
+          sport === "golf" ? fetch(`/api/courses/search?q=${encodeURIComponent(term)}`, { signal: ac.signal }).then((r) => r.json() as Promise<{ hits?: CourseHit[] }>) : Promise.resolve({ hits: [] as CourseHit[] }),
+        ]);
         if (!ac.signal.aborted) {
-          setHits(body.hits ?? []);
+          const courseHits: Hit[] = (courses.hits ?? []).map((c) => ({ name: c.club && c.club !== c.name ? `${c.club}, ${c.name}` : c.name, address: c.address, course: c }));
+          const seen = new Set(courseHits.map((h) => h.name.toLowerCase()));
+          setHits([...courseHits, ...(places.hits ?? []).filter((p) => !seen.has(p.name.toLowerCase()))].slice(0, 8));
           // Only pop the list if the venue field still has focus; otherwise it lands on top of the next field.
           setOpen(document.activeElement === inputRef.current);
           setActive(-1);
@@ -49,16 +59,20 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    const onPicked = (e: Event) => setPicked(String((e as CustomEvent<string>).detail ?? ""));
+    const onPicked = (e: Event) => {
+      setPicked(String((e as CustomEvent<string>).detail ?? ""));
+      setCourse(null);
+    };
     el.addEventListener("rc:venue-picked", onPicked);
     return () => el.removeEventListener("rc:venue-picked", onPicked);
   }, []);
 
-  function pick(h: PlaceHit) {
+  function pick(h: Hit) {
     setPicked(h.name);
     setValue(h.name);
     setHits([]);
     setOpen(false);
+    setCourse(h.course ?? null);
     const addr = inputRef.current?.form?.elements.namedItem("venueAddress") as HTMLInputElement | null;
     if (addr && h.address) addr.value = h.address;
   }
@@ -93,7 +107,14 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
         aria-controls={listId}
         aria-autocomplete="list"
       />
-      {hint ? <span className="text-xs text-ink-3">{hint}</span> : null}
+      <input type="hidden" name="courseRef" value={course ? `${course.source}:${course.ref}` : ""} />
+      {course ? (
+        <span className="text-xs text-pitch inline-flex items-center gap-1">
+          <IconGolf size={13} /> Card loads: {courseLabel(course)} · {course.holes.length} holes · par {coursePar(course.holes)}
+        </span>
+      ) : hint ? (
+        <span className="text-xs text-ink-3">{hint}</span>
+      ) : null}
       {open && hits.length ? (
         <ul id={listId} role="listbox" className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-30 mt-1 rounded-md border border-line bg-panel shadow-lg overflow-hidden anim-rise">
           {hits.map((h, i) => (
@@ -108,10 +129,10 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
               onMouseEnter={() => setActive(i)}
               className={`flex items-start gap-2 px-3 py-2 cursor-pointer text-sm ${i === active ? "bg-pitch-soft" : ""}`}
             >
-              <IconPin size={15} className="mt-0.5 text-ink-3 shrink-0" />
+              {h.course ? <IconGolf size={15} className="mt-0.5 text-pitch shrink-0" /> : <IconPin size={15} className="mt-0.5 text-ink-3 shrink-0" />}
               <span className="min-w-0">
                 <span className="font-semibold block truncate">{h.name}</span>
-                {h.address ? <span className="text-xs text-ink-3 block truncate">{h.address}</span> : null}
+                <span className="text-xs text-ink-3 block truncate">{h.course ? `${h.course.tee ? `${h.course.tee} tees · ` : ""}${h.course.holes.length} holes · par ${coursePar(h.course.holes)}${h.address ? ` · ${h.address}` : ""}` : h.address}</span>
               </span>
             </li>
           ))}

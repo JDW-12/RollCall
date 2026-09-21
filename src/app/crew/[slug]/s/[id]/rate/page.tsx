@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireCrewPage } from "@/lib/access";
 import { getSessionBundle, listMembers } from "@/lib/queries";
-import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { CrewShell } from "@/components/shell";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Avatar } from "@/components/avatar";
@@ -20,14 +20,14 @@ export default async function RatePage({ params }: { params: Promise<{ slug: str
   const { session, attendance, ratings } = bundle;
   const members = await listMembers(crew.id);
   const played = attendance.filter((a) => a.attended).map((a) => members.find((m) => m.id === a.userId)).filter((m): m is NonNullable<typeof m> => !!m);
-  const sport = sportOf(session.sport);
+  const cats = ratingsFor(crew.sport, crew.ratings);
   const mine = ratings.filter((r) => r.raterId === user.id);
   const iPlayed = played.some((p) => p.id === user.id);
-  const total = sport.ratings.length;
+  const total = cats.length;
 
   return (
     <CrewShell crew={crew} user={user} active="sessions">
-      <PageTitle eyebrow={session.title} title="Three taps">
+      <PageTitle eyebrow={session.title} title={total === 3 ? "Three taps" : `${["Two", "Three", "Four", "Five"][total - 2] ?? total} taps`}>
         {mine.length ? "You've voted. Change your mind below." : "Pick one name for each. Your votes are private; only the totals show."}
       </PageTitle>
       {session.status !== "played" ? (
@@ -37,7 +37,7 @@ export default async function RatePage({ params }: { params: Promise<{ slug: str
       ) : (
         <ActionForm action={rate} className="max-w-md pb-20 sm:pb-0">
           <input type="hidden" name="sessionId" value={session.id} />
-          {sport.ratings.map((c, i) => {
+          {cats.map((c, i) => {
             const banter = c.points === 0;
             return (
               <fieldset key={c.key} className={cls("surface p-4 flex flex-col gap-3", banter && "border-card/50", i === 0 ? "anim-rise" : i === 1 ? "anim-rise-2" : "anim-rise-3")}>

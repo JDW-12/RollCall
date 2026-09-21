@@ -13,7 +13,8 @@ import { CalendarBlock } from "@/components/calendar-block";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconPeople, IconPin, IconShare, SportIcon } from "@/components/icons";
 import { Button, Eyebrow, Field, Panel, Pill } from "@/components/ui";
-import { removeMember, rotateInvite, setMemberRole, updateCrew } from "@/lib/actions/crew";
+import { removeMember, rotateInvite, setMemberRole, updateCrew, updateRatings } from "@/lib/actions/crew";
+import { MAX_RATINGS, ratingsFor } from "@/domain/ratings";
 import { fmtDay } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Crew" };
@@ -34,6 +35,7 @@ export default async function SettingsPage({ params, searchParams }: { params: P
   const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
   const organisers = members.filter((m) => m.role === "organiser").length;
+  const cats = ratingsFor(crew.sport, crew.ratings);
   return (
     <CrewShell crew={crew} user={user} active="settings">
       <CrewBand crew={crew}>
@@ -172,6 +174,52 @@ export default async function SettingsPage({ params, searchParams }: { params: P
             <SubmitButton variant="secondary" className="self-start" pendingText="Saving…">
               Save
             </SubmitButton>
+          </ActionForm>
+        </Panel>
+      ) : null}
+
+      {isOrganiser ? (
+        <Panel className="p-4 mb-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <Eyebrow>What you vote on</Eyebrow>
+              <p className="text-sm text-ink-2 mt-1">After every {sport.noun}, players pick one name for each. The first two carry table points (+2 and +1); the rest are banter. Up to five.</p>
+            </div>
+            {crew.ratings ? <Pill tone="good">Custom</Pill> : <Pill>Defaults</Pill>}
+          </div>
+          <ActionForm action={updateRatings} marker="ratings-form">
+            <input type="hidden" name="crewId" value={crew.id} />
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: MAX_RATINGS }, (_, i) => {
+                const c = cats[i];
+                return (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_64px] gap-2 items-end">
+                    <label className="flex flex-col gap-1 text-xs font-semibold">
+                      {i === 0 ? "Award" : ""}
+                      <input name={`label_${i}`} defaultValue={c?.label ?? ""} maxLength={30} placeholder={i < 2 ? (i === 0 ? "e.g. Player of the match" : "e.g. Ran the hardest") : "e.g. Worst dressed"} aria-label={`Vote ${i + 1} label`} className="text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-semibold">
+                      {i === 0 ? "Question" : ""}
+                      <input name={`prompt_${i}`} defaultValue={c?.prompt ?? ""} maxLength={80} placeholder="Who was…?" aria-label={`Vote ${i + 1} question`} className="text-sm" />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-semibold">
+                      {i === 0 ? "Card" : ""}
+                      <input name={`stat_${i}`} defaultValue={c?.stat ?? ""} maxLength={3} placeholder="ABC" aria-label={`Vote ${i + 1} card stat`} className="text-sm font-mono uppercase text-center px-1" />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <SubmitButton variant="secondary" pendingText="Saving…">
+                Save votes
+              </SubmitButton>
+              {crew.ratings ? (
+                <SubmitButton variant="ghost" name="reset" value="1" pendingText="Resetting…">
+                  Back to {sport.label} defaults
+                </SubmitButton>
+              ) : null}
+            </div>
           </ActionForm>
         </Panel>
       ) : null}

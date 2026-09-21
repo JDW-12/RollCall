@@ -1,0 +1,1 @@
+ALTER TABLE `crews` ADD `ratings` text;

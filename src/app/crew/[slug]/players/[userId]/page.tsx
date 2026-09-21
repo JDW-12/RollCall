@@ -6,7 +6,9 @@ import { PlayerPreview } from "@/components/previews";
 import { track } from "@/lib/events";
 import { getCrewLedger, getCrewTable, getUser, golfRounds } from "@/lib/queries";
 import { golfStats } from "@/domain/golf-stats";
+import { RESULT_LABEL } from "@/domain/golf-highlights";
 import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { turnUpRate } from "@/domain/table";
 import { CrewShell } from "@/components/shell";
 import { PlayerCard } from "@/components/player-card";
@@ -43,13 +45,15 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   if (!m || !row) notFound();
   const rank = rows.findIndex((r) => r.userId === userId) + 1;
   const sport = sportOf(crew.sport);
+  const cats = ratingsFor(crew.sport, crew.ratings);
   const { balances } = await getCrewLedger(crew.id);
   const owed = balances.get(userId)?.owed ?? 0;
   const url = `${await appUrl()}/crew/${crew.slug}/players/${userId}`;
   const hasRate = row.expected + row.lateDrops > 0;
   const rate = Math.round(turnUpRate(row) * 100);
-  const maxVotes = Math.max(1, ...sport.ratings.map((c) => row.votes[c.key] ?? 0));
+  const maxVotes = Math.max(1, ...cats.map((c) => row.votes[c.key] ?? 0));
   const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
+  const golfCard = golf ? { handicap: golf.handicap, avg: golf.avg, best: golf.best?.points ?? null, birdies: golf.results.birdie + golf.results.eagle + golf.results.albatross + golf.results.holeInOne, wins: golf.wins, rounds: golf.rounds } : null;
 
   return (
     <CrewShell crew={crew} user={user} active="table">
@@ -57,7 +61,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
 
       <div className="grid gap-5 sm:grid-cols-[minmax(0,340px)_1fr] items-start">
         <div className="w-full max-w-[340px] mx-auto sm:mx-0 anim-rise">
-          <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={sport.ratings} points={row.points} season={crew.seasonName} tilt />
+          <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={cats} points={row.points} season={crew.seasonName} tilt golf={golfCard} />
         </div>
 
         <div className="flex flex-col gap-3">
@@ -91,7 +95,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                 </div>
                 {golf.handicap !== null ? <span className="eyebrow">Off {golf.handicap}</span> : null}
               </div>
-              {golf.rounds ? (
+              {golf.rounds || golf.results.par || golf.results.birdie || golf.results.bogey ? (
                 <div className="grid grid-cols-3 gap-x-3 gap-y-4">
                   <Stat label="Rounds" value={<AnimatedNumber value={golf.rounds} />} />
                   <Stat label="Avg pts" value={<AnimatedNumber value={golf.avg ?? 0} decimals={1} />} tone={(golf.avg ?? 0) >= 36 ? "good" : undefined} />
@@ -99,8 +103,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                   <div className="col-span-3 flex items-end justify-between gap-3">
                     <div className="text-sm">
                       <span className="text-ink-3">Best </span>
-                      <span className="display text-xl font-bold tnum">{golf.best?.points}</span>
-                      <span className="text-ink-3"> · {golf.best?.title}</span>
+                      <span className="display text-xl font-bold tnum">{golf.best?.points ?? "–"}</span>
+                      {golf.best ? <span className="text-ink-3"> · {golf.best.title}</span> : null}
                     </div>
                     <div className="flex items-end gap-1 h-8" aria-label={`Last rounds: ${golf.recent.join(", ")} points`}>
                       {golf.recent.map((p, i) => (
@@ -108,9 +112,34 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                       ))}
                     </div>
                   </div>
+                  <div className="col-span-3 grid grid-cols-4 gap-2 text-center">
+                    {(["holeInOne", "eagle", "birdie", "par"] as const).map((k) => (
+                      <div key={k} className={cls("rounded-md border border-line px-2 py-1.5", golf.results[k] > 0 && k !== "par" ? "bg-pitch-soft border-pitch/40" : "bg-panel-2")}>
+                        <div className={cls("display text-xl font-extrabold tnum leading-none", golf.results[k] > 0 && k !== "par" ? "text-pitch" : "")}>{golf.results[k]}</div>
+                        <div className="eyebrow mt-0.5">{k === "holeInOne" ? "Aces" : `${RESULT_LABEL[k]}s`}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="col-span-3 grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <div className="eyebrow">Best hole</div>
+                      <div className="font-semibold">{golf.bestHole ? `${RESULT_LABEL[golf.bestHole.result]} · ${golf.bestHole.hole}th` : "–"}</div>
+                      {golf.bestHole ? <div className="text-xs text-ink-3 truncate">{golf.bestHole.title}</div> : null}
+                    </div>
+                    <div>
+                      <div className="eyebrow">Longest drive</div>
+                      <div className="font-semibold">{golf.longestDrive ? `${golf.longestDrive.yards} yds` : "–"}</div>
+                      {golf.longestDrive ? <div className="text-xs text-ink-3 truncate">{golf.longestDrive.title}</div> : null}
+                    </div>
+                    <div>
+                      <div className="eyebrow">Balls lost</div>
+                      <div className={cls("font-semibold", golf.ballsLost >= 5 && "text-red")}>{golf.ballsLost}</div>
+                      <div className="text-xs text-ink-3">this season</div>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <p className="text-sm text-ink-2">No complete cards yet. Every hole in and the round counts here.</p>
+                <p className="text-sm text-ink-2">No cards yet. Save a card on any round and the numbers start here.</p>
               )}
             </Panel>
           ) : null}
@@ -122,7 +151,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
               </span>
               <div className="eyebrow">Votes</div>
             </div>
-            {sport.ratings.map((c, i) => {
+            {cats.map((c, i) => {
               const n = row.votes[c.key] ?? 0;
               return (
                 <div key={c.key} className="flex flex-col gap-1.5">

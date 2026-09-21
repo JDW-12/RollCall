@@ -26,6 +26,7 @@ async function pinRound(page: Page, title: string) {
 }
 
 test("golf: typed card → library → reuse → correction", async ({ browser, request }) => {
+  test.setTimeout(150_000); // one long journey on purpose: it mirrors a real round end to end
   const stamp = Date.now().toString(36);
   const ctx = await browser.newContext();
   const org = await ctx.newPage();
@@ -71,23 +72,48 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(yourCard.locator('[aria-label="Hole 1: 3 points"]')).toBeVisible();
   await expect(yourCard.locator('[aria-label="Hole 4: 2 points"]')).toBeVisible();
   await expect(yourCard.locator('[aria-label="Hole 3: 4 points"]')).toBeVisible();
+  await expect(yourCard.locator("li", { hasText: "SI 9" })).toContainText("Birdie");
+  await yourCard.locator('input[aria-label="Longest drive in yards"]').fill("250");
+  await yourCard.locator('input[aria-label="Balls lost"]').fill("2");
   await yourCard.locator('button:has-text("Save card")').click();
-  // The card folds away once saved; the leaderboard above it shows the result.
+  // The card folds away once saved; the leaderboard above it shows the result and the round highlights.
   const table = org.locator("table", { hasText: "Player" });
   await expect(table.locator("tbody tr").first()).toContainText("Josh Test");
   await expect(table.locator("tbody tr").first()).toContainText("3 holes");
   await expect(table.locator("tbody tr").first().locator("td").last()).toHaveText("9");
+  await expect(table.locator("tbody tr").first().locator("td").nth(4)).toHaveText("1"); // one birdie
+  const highlights = org.locator('ul[aria-label="Round highlights"]');
+  await expect(highlights).toContainText("Birdie");
+  await expect(highlights).toContainText("250 yds");
+  await expect(highlights).toContainText("Balls donated");
 
-  // A later round finds the card in the library by search and reuses it in one tap.
+  // The player page turns the round into golf stats and a golf-flavoured card.
+  const playerLink = await org.locator('a[href*="/players/"]').first().getAttribute("href", { timeout: 3000 }).catch(() => null);
+  if (playerLink) {
+    await org.goto(playerLink);
+    await expect(org.getByText("Longest drive")).toBeVisible();
+    await expect(org.locator("text=HCP")).toBeVisible();
+    await org.goBack();
+  }
+
+  // A later round: the venue finder on the session form searches the course library, and picking the
+  // course there loads the card onto the session with no picker step.
   await org.goto(org.url().replace(/\/s\/.*$/, ""));
-  await pinRound(org, "Sunday medal");
-  const picker2 = org.locator("details", { hasText: "Pick the course" });
-  await picker2.locator('input[aria-label="Search golf courses"]').fill(`Links ${stamp}`);
-  const hit = org.locator('ul[aria-label="Matching courses"] li', { hasText: course });
-  await expect(hit).toBeVisible();
-  await expect(hit.getByText("used 1×")).toBeVisible();
-  await hit.locator('button:has-text("Use")').click();
+  await org.click('a:has-text("Pin a session")');
+  await org.check('input[name="sport"][value="golf"]');
+  await org.fill('input[name="title"]', "Sunday medal");
+  await org.fill('input[name="startsAt"]', londonInput(Date.now() + 5 * 60 * 60_000));
+  await org.locator('input[name="venueName"]').pressSequentially(`Links ${stamp}`, { delay: 30 });
+  const option = org.locator('[role="option"]', { hasText: course });
+  await expect(option).toBeVisible();
+  await expect(option).toContainText("par 36");
+  await option.click();
+  await expect(org.getByText("Card loads:")).toBeVisible();
+  await org.fill('input[name="capacity"]', "4");
+  await org.click('button:has-text("Pin it")');
+  await expect(org).toHaveURL(/\/s\/[a-z0-9]+\?pinned=1/);
   await expect(org.locator("p", { hasText: "Card:" })).toContainText(`${course} · White tees`);
+  await expect(org.getByText("9 holes · par 36").first()).toBeVisible();
 
   // Organiser corrects hole 1 to a par 5: the session card and the library copy both change.
   const fix = org.locator("details", { hasText: "Fix pars and stroke indexes" });
@@ -117,6 +143,16 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   expect(mine).toHaveLength(1);
   expect(mine[0].uses).toBe(3);
   expect(mine[0].holes[0].par).toBe(4);
+
+  // The crew can choose its own things to vote on; the rate page and cards follow.
+  await org.goto(org.url().replace(/\/s\/.*$/, "/settings"));
+  const votes = org.locator("form[data-ratings-form]");
+  await votes.locator('input[aria-label="Vote 2 label"]').fill("Best putter");
+  await votes.locator('input[aria-label="Vote 2 card stat"]').fill("PUT");
+  await votes.locator('input[aria-label="Vote 4 label"]').fill("Best dressed");
+  await votes.locator('button:has-text("Save votes")').click();
+  await expect(org.getByText("Saved. 4 things to vote on")).toBeVisible();
+  await expect(org.getByText("Custom")).toBeVisible();
 
   // Lookups need a signed-in member: no cookie, no data (and no free proxy to the providers).
   expect((await request.get("/api/places?q=richmond")).status()).toBe(401);

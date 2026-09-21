@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { shotsOnHole, stablefordPoints, type Hole } from "@/domain/stableford";
+import { shotsOnHole, stablefordPoints, type Hole, type RoundExtras } from "@/domain/stableford";
+import { RESULT_LABEL, holeResult } from "@/domain/golf-highlights";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
@@ -11,7 +12,7 @@ import { saveStableford } from "@/lib/actions/games";
  * gross, points working themselves out as you go, front and back nine totals. Submits the same
  * fields as the old grid, so the server action is unchanged.
  */
-export function HoleScorer({ sessionId, userId, holes, handicap: initialHandicap, strokes: initialStrokes }: { sessionId: string; userId: string; holes: Hole[]; handicap: number | null; strokes: (number | null)[] | null }) {
+export function HoleScorer({ sessionId, userId, holes, handicap: initialHandicap, strokes: initialStrokes, extras }: { sessionId: string; userId: string; holes: Hole[]; handicap: number | null; strokes: (number | null)[] | null; extras?: RoundExtras | null }) {
   const [handicap, setHandicap] = useState<string>(initialHandicap == null ? "" : String(initialHandicap));
   const [strokes, setStrokes] = useState<(number | null)[]>(() => holes.map((_, i) => initialStrokes?.[i] ?? null));
   const hcp = Math.max(0, Math.min(54, Number(handicap) || 0));
@@ -59,9 +60,11 @@ export function HoleScorer({ sessionId, userId, holes, handicap: initialHandicap
               <div className="flex-1 min-w-0 leading-tight">
                 <div className="text-sm font-semibold">
                   Par {h.par} <span className="text-ink-3 font-normal">· SI {h.strokeIndex}</span>
+                  {h.yards ? <span className="text-ink-3 font-normal"> · {h.yards} yds</span> : null}
                 </div>
-                <div className="text-[11px] text-ink-3 font-mono" aria-label={shots ? `${shots} shot${shots > 1 ? "s" : ""} received` : "no shots"}>
+                <div className="text-[11px] text-ink-3 font-mono whitespace-nowrap" aria-label={shots ? `${shots} shot${shots > 1 ? "s" : ""} received` : "no shots"}>
                   {shots ? "●".repeat(shots) + " shot" + (shots > 1 ? "s" : "") : "no shot"}
+                  {g !== null && g < h.par ? <span className="ml-2 text-pitch font-bold uppercase tracking-wide">{RESULT_LABEL[holeResult(g, h.par)]}</span> : null}
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -90,6 +93,16 @@ export function HoleScorer({ sessionId, userId, holes, handicap: initialHandicap
           );
         })}
       </ol>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1 text-xs font-semibold">
+          Longest drive (yds)
+          <input name="longestDrive" type="number" min={0} max={450} inputMode="numeric" defaultValue={extras?.longestDriveYards ?? ""} placeholder="–" className="display text-lg font-bold tnum" aria-label="Longest drive in yards" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold">
+          Balls lost
+          <input name="ballsLost" type="number" min={0} max={60} inputMode="numeric" defaultValue={extras?.ballsLost ?? ""} placeholder="0" className="display text-lg font-bold tnum" aria-label="Balls lost" />
+        </label>
+      </div>
       <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs">
         <Total label={n === 18 ? "Out" : "Round"} pts={sum(pts, 0, half)} gross={grossOf(0, half)} />
         {n === 18 ? <Total label="In" pts={sum(pts, half, n)} gross={grossOf(half, n)} /> : <div />}

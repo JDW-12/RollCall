@@ -2,6 +2,10 @@ import { ImageResponse } from "next/og";
 import { findCrewBySlug } from "@/lib/access";
 import { getCrewTable } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
+import { golfStats } from "@/domain/golf-stats";
+import { golfSlots } from "@/components/player-card";
+import { golfRounds } from "@/lib/queries";
 import { initials } from "@/lib/format";
 import { OG, OG_MARK_PATH, ogFonts, ogTier } from "@/lib/og";
 
@@ -32,6 +36,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     );
   }
   const sport = sportOf(crew.sport);
+  const cats = ratingsFor(crew.sport, crew.ratings);
   const rank = table.rows.findIndex((r) => r.userId === userId) + 1;
   const tier = ogTier(row.card.overall);
   const elite = tier === "Elite";
@@ -46,11 +51,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const avatarInk = `hsl(${h} 60% 88%)`;
 
   const label = { fontSize: 22, letterSpacing: 4, textTransform: "uppercase" as const, fontWeight: 700 };
-  const stats: [string, number][] = [
+  const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
+  const stats: [string, number][] = golf ? golfSlots({ handicap: golf.handicap, avg: golf.avg, best: golf.best?.points ?? null, birdies: golf.results.birdie + golf.results.eagle + golf.results.albatross + golf.results.holeInOne, wins: golf.wins, rounds: golf.rounds }, row.points) : [
     ["TRN", row.card.turnsUp],
     ["FRM", row.card.form],
-    [sport.ratings[0].stat, row.card.votes],
-    [sport.ratings[1].stat, row.card.graft],
+    [cats[0].stat, row.card.votes],
+    [cats[1].stat, row.card.graft],
     ["STK", row.card.streak],
     ["PTS", Math.max(0, Math.min(99, row.points))],
   ];

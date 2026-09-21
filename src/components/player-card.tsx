@@ -30,6 +30,20 @@ function ground(tier: Tier, hue: number): string {
   }
 }
 
+/** Golf crews swap the six slots for the numbers a golfer cares about. */
+export type GolfCardStats = { handicap: number | null; avg: number | null; best: number | null; birdies: number; wins: number; rounds: number };
+
+export function golfSlots(g: GolfCardStats, points: number): [string, number][] {
+  return [
+    ["HCP", g.handicap ?? 0],
+    ["AVG", Math.round(g.avg ?? 0)],
+    ["BST", g.best ?? 0],
+    ["BRD", Math.min(99, g.birdies)],
+    ["WIN", Math.min(99, g.wins)],
+    ["PTS", Math.max(0, Math.min(99, points))],
+  ];
+}
+
 export type PlayerCardProps = {
   name: string;
   hue: number;
@@ -43,16 +57,17 @@ export type PlayerCardProps = {
   season?: string;
   tilt?: boolean;
   className?: string;
+  golf?: GolfCardStats | null;
 };
 
 /**
  * The collectible. Tier frame by overall rating, foil sheen, the player's colour as the ground,
  * six stats. Rendered in-page; the share-card image route draws the same thing.
  */
-export function PlayerCard({ name, hue, crewName, sport, sportLabel, card, rank, categories, points, season, tilt = true, className }: PlayerCardProps) {
+export function PlayerCard({ name, hue, crewName, sport, sportLabel, card, rank, categories, points, season, tilt = true, className, golf }: PlayerCardProps) {
   const tier = tierOf(card.overall);
   const dark = `oklch(0.22 0.05 ${hue})`;
-  const stats: [string, number][] = [
+  const stats: [string, number][] = golf ? golfSlots(golf, points) : [
     ["TRN", card.turnsUp],
     ["FRM", card.form],
     [categories[0]?.stat ?? "MOT", card.votes],

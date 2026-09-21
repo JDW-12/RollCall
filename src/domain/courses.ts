@@ -35,7 +35,8 @@ export function validateHoles(input: unknown): Hole[] {
     const si = Number(h.strokeIndex);
     if (!Number.isInteger(par) || par < 3 || par > 6) throw new CourseError(`Hole ${i + 1}: par must be 3 to 6.`);
     if (!Number.isInteger(si) || si < 1 || si > n) throw new CourseError(`Hole ${i + 1}: stroke index must be 1 to ${n}.`);
-    return { number: i + 1, par, strokeIndex: si };
+    const yards = Number(h.yards);
+    return Number.isInteger(yards) && yards > 0 && yards < 1000 ? { number: i + 1, par, strokeIndex: si, yards } : { number: i + 1, par, strokeIndex: si };
   });
   const seen = new Set(holes.map((h) => h.strokeIndex));
   if (seen.size !== n) throw new CourseError("Each stroke index from 1 to " + n + " must appear exactly once.");
@@ -115,7 +116,7 @@ export type GolfApiCourse = {
   club_name?: string;
   course_name?: string;
   location?: { address?: string; city?: string; state?: string; country?: string };
-  tees?: Record<string, { tee_name?: string; par_total?: number; number_of_holes?: number; holes?: { par?: number; handicap?: number }[] }[] | undefined>;
+  tees?: Record<string, { tee_name?: string; par_total?: number; number_of_holes?: number; holes?: { par?: number; handicap?: number; yardage?: number }[] }[] | undefined>;
 };
 
 /** Maps one provider course into hits, one per tee set that has a usable card. */
@@ -135,7 +136,7 @@ export function hitsFromGolfApi(course: GolfApiCourse): CourseHit[] {
       const raw = tee.holes ?? [];
       if (raw.length !== 9 && raw.length !== 18) continue;
       try {
-        const holes = validateHoles(raw.map((h, i) => ({ number: i + 1, par: h.par, strokeIndex: h.handicap })));
+        const holes = validateHoles(raw.map((h, i) => ({ number: i + 1, par: h.par, strokeIndex: h.handicap, yards: h.yardage })));
         seenTee.add(key);
         out.push({ name, club, address, tee: teeName, holes, source: "api", ref: `golfcourseapi:${course.id}:${teeName}`, uses: 0 });
       } catch {

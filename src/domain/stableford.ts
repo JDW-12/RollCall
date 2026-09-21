@@ -3,7 +3,10 @@
  * and the hole's stroke index, points = 2 + par - net strokes, floored at zero.
  */
 
-export type Hole = { number: number; par: number; strokeIndex: number };
+export type Hole = { number: number; par: number; strokeIndex: number; /** Length from the tee set the card is for, when known. */ yards?: number };
+
+/** Per-player extras entered after the round: the two numbers every society argues about. */
+export type RoundExtras = { longestDriveYards?: number | null; ballsLost?: number | null };
 
 export type StablefordCard = {
   holes: Hole[];
@@ -13,6 +16,8 @@ export type StablefordCard = {
   handicaps: Record<string, number>;
   /** userId -> gross strokes per hole (null = not entered / picked up) */
   strokes: Record<string, (number | null)[]>;
+  /** userId -> longest drive, balls lost. Optional on older cards. */
+  extras?: Record<string, RoundExtras>;
 };
 
 export function shotsOnHole(handicap: number, strokeIndex: number, holeCount = 18): number {

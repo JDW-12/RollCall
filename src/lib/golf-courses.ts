@@ -76,6 +76,23 @@ export async function resolveProviderCourse(ref: string): Promise<CourseHit | nu
   }
 }
 
+/**
+ * Turns a picked course into the holes and label a Stableford card needs. Library ids count a use;
+ * provider references are re-fetched and imported. Used by the session form and the in-session picker.
+ */
+export async function resolveCourseRef(source: "library" | "api", ref: string, userId: string): Promise<{ holes: Hole[]; course: { id: string; name: string; tee: string } } | null> {
+  if (source === "library") {
+    const row = await getCourse(ref);
+    if (!row) return null;
+    await countUse(row.id);
+    return { holes: validateHoles(JSON.parse(row.holes)), course: { id: row.id, name: row.name, tee: row.tee } };
+  }
+  const hit = await resolveProviderCourse(ref);
+  if (!hit) return null;
+  const row = await upsertCourse(hit, { source: "api", externalId: hit.ref, userId });
+  return { holes: validateHoles(JSON.parse(row.holes)), course: { id: row.id, name: row.name, tee: row.tee } };
+}
+
 export async function getCourse(id: string): Promise<schema.Course | null> {
   const db = await getDb();
   return (await db.select().from(schema.courses).where(eq(schema.courses.id, id)).limit(1))[0] ?? null;

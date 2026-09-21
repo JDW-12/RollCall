@@ -21,8 +21,23 @@ describe("golfStats", () => {
     expect(s.wins).toBe(2);
     expect(s.recent).toEqual([46, 30, 36]);
     expect(s.handicap).toBe(12);
+    expect(s.results.par).toBe(18 + 17 + 18);
+    expect(s.results.bogey).toBe(18);
+  });
+  it("keeps hole results, the best hole and the extras across the season, including incomplete cards", () => {
+    const rounds: Round[] = [
+      { sessionId: "s1", title: "Medal", startsAt: 1, card: { holes, handicaps: {}, strokes: { josh: par.map((p, i) => (i === 0 ? p - 1 : p)) }, extras: { josh: { longestDriveYards: 240, ballsLost: 2 } } } },
+      { sessionId: "s2", title: "Knock", startsAt: 2, card: { holes, handicaps: {}, strokes: { josh: [1, ...par.slice(1, 9), ...Array(9).fill(null)] }, extras: { josh: { longestDriveYards: 270, ballsLost: 1 } } } },
+    ];
+    const s = golfStats(rounds, "josh");
+    expect(s.rounds).toBe(1);
+    expect(s.results.birdie).toBe(1);
+    expect(s.results.holeInOne).toBe(1);
+    expect(s.bestHole).toEqual({ result: "holeInOne", hole: 1, title: "Knock" });
+    expect(s.longestDrive).toEqual({ yards: 270, title: "Knock" });
+    expect(s.ballsLost).toBe(3);
   });
   it("is empty for someone with no complete card", () => {
-    expect(golfStats([], "x")).toEqual({ rounds: 0, avg: null, best: null, wins: 0, recent: [], handicap: null });
+    expect(golfStats([], "x")).toMatchObject({ rounds: 0, avg: null, best: null, wins: 0, recent: [], handicap: null, bestHole: null, longestDrive: null, ballsLost: 0 });
   });
 });

@@ -1,8 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
+import { ratingsFor } from "@/domain/ratings";
 import { computeTable, type TableRow } from "@/domain/table";
-import { sportOf } from "@/domain/sports";
 import { balances, type Balance } from "@/domain/money";
 
 export type Member = schema.User & { role: schema.CrewMember["role"]; joinedAt: Date };
@@ -104,7 +104,7 @@ export async function getCrewTable(crew: schema.Crew): Promise<{ rows: TableRow[
     rsvps: rs.map((r) => ({ sessionId: r.sessionId, userId: r.userId, status: r.status, lateDrop: r.lateDrop })),
     attendance: att.map((a) => ({ sessionId: a.sessionId, userId: a.userId, attended: a.attended })),
     ratings: rats.map((r) => ({ sessionId: r.sessionId, category: r.category, rateeId: r.rateeId })),
-    categories: sportOf(crew.sport).ratings,
+    categories: ratingsFor(crew.sport, crew.ratings),
   });
   return { rows, members };
 }

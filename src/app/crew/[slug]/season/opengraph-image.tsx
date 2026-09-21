@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { findCrewBySlug } from "@/lib/access";
 import { getCrewTable } from "@/lib/queries";
 import { seasonAwards } from "@/domain/awards";
-import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { OG, ogFonts } from "@/lib/og";
 
 export const alt = "Roll Call season awards";
@@ -17,7 +17,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     return new ImageResponse(<div style={{ display: "flex", width: "100%", height: "100%", background: OG.ground, color: OG.ink, fontSize: 140, alignItems: "center", justifyContent: "center", fontWeight: 800, fontFamily: OG.display }}>ROLL CALL</div>, { ...size, fonts });
   }
   const { rows, members } = await getCrewTable(crew);
-  const awards = seasonAwards(rows, sportOf(crew.sport).ratings, 1).slice(0, 4);
+  const awards = seasonAwards(rows, ratingsFor(crew.sport, crew.ratings), 1).slice(0, 4);
   const label = { fontSize: 22, letterSpacing: 4, textTransform: "uppercase" as const, color: OG.ink3, fontWeight: 700 };
   const tone = (t: string) => (t === "pitch" ? OG.pitch : t === "card" ? "#ffc53d" : t === "red" ? "#ff5c4d" : OG.ink);
   return new ImageResponse(

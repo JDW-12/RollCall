@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { findCrewBySlug } from "@/lib/access";
 import { getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
+import { ratingsFor } from "@/domain/ratings";
 import { summarise } from "@/domain/rsvp";
 import { stablefordTotals, type StablefordCard } from "@/domain/stableford";
 import { fmtLong, plural } from "@/lib/format";
@@ -40,6 +41,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { session, rsvps, attendance, ratings } = bundle;
   const members = await listMembers(crew.id);
   const sport = sportOf(session.sport);
+  const cats = ratingsFor(crew.sport, crew.ratings);
   const s = summarise(
     rsvps.map((r) => ({ userId: r.userId, status: r.status, queuedAt: r.queuedAt.getTime(), respondedAt: 0, droppedAt: null, lateDrop: r.lateDrop })),
     session.capacity,
@@ -47,7 +49,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const played = session.status === "played";
   const turnedUp = attendance.filter((a) => a.attended).length;
   const counts = new Map<string, number>();
-  for (const r of ratings) if (r.category === sport.ratings[0].key) counts.set(r.rateeId, (counts.get(r.rateeId) ?? 0) + 1);
+  for (const r of ratings) if (r.category === cats[0].key) counts.set(r.rateeId, (counts.get(r.rateeId) ?? 0) + 1);
   const topVote = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   const motm = topVote ? members.find((m) => m.id === topVote[0])?.name : null;
   const firstNames = rsvps
@@ -63,7 +65,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const leader = board[0];
   const first = (id: string) => members.find((m) => m.id === id)?.name.split(" ")[0] ?? "?";
 
-  const status = leader ? (played ? "Stableford · final" : "Stableford · live") : played ? (motm ? sport.ratings[0].label : "Played") : s.full ? "Full · reserves open" : plural(s.spotsLeft, "spot") + " left";
+  const status = leader ? (played ? "Stableford · final" : "Stableford · live") : played ? (motm ? cats[0].label : "Played") : s.full ? "Full · reserves open" : plural(s.spotsLeft, "spot") + " left";
   const line = leader
     ? board
         .slice(0, 4)
