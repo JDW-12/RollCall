@@ -55,6 +55,7 @@ Only after 300 active London crews.
 - Strava and Hevy import for gym crew streaks
 - Karting and sim racing results as a side game
 - Second UK city
+- Golf course cards: search by name or postcode against a course-data API to pre-fill par and stroke index per hole, organiser edits and saves to the crew venue, corrected cards stored per course and tee, plus a scan-the-paper-card option for courses no API covers. Build after the first golf crew has logged a few rounds by hand, so the courses that matter are known
 - One-off premium crew features (custom card designs, extended history), priced per season
 
 ## Non-goals
