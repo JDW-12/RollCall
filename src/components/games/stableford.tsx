@@ -68,12 +68,12 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
         <p className="text-sm text-ink-2">No cards yet. Enter your handicap and gross scores per hole; points work themselves out.</p>
       )}
       {editable.map((uid) => (
-        <details key={uid} className="rounded-md border border-line bg-panel-2 overflow-hidden" open={uid === myId && !card.strokes[uid]}>
+        <details key={uid} className="rounded-md border border-line bg-panel-2" open={uid === myId && !card.strokes[uid]}>
           <summary className={summaryCls}>
             <span>{uid === myId ? "Your card" : `${name(uid)}'s card`}</span>
             <span className="eyebrow">{card.strokes[uid] ? "Saved" : "Empty"}</span>
           </summary>
-          <HoleScorer key={courseKey} sessionId={sessionId} userId={uid} holes={card.holes} handicap={card.handicaps[uid] ?? null} strokes={card.strokes[uid] ?? null} />
+          <HoleScorer key={`${courseKey}|${game?.updatedAt.getTime() ?? 0}`} sessionId={sessionId} userId={uid} holes={card.holes} handicap={card.handicaps[uid] ?? null} strokes={card.strokes[uid] ?? null} />
         </details>
       ))}
       {isOrganiser ? (
@@ -104,7 +104,7 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
                     <td className="pr-2">Par</td>
                     {card.holes.map((h, i) => (
                       <td key={h.number} className="px-0.5">
-                        <input name={`par_${i}`} inputMode="numeric" defaultValue={h.par} className="w-9 px-0 text-center min-h-9 py-1 font-mono" aria-label={`Hole ${h.number} par`} />
+                        <input name={`par_${i}`} inputMode="numeric" defaultValue={h.par} className="w-10 px-0 text-center min-h-10 py-1 font-mono" aria-label={`Hole ${h.number} par`} />
                       </td>
                     ))}
                   </tr>
@@ -112,7 +112,7 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
                     <td className="pr-2">SI</td>
                     {card.holes.map((h, i) => (
                       <td key={h.number} className="px-0.5">
-                        <input name={`si_${i}`} inputMode="numeric" defaultValue={h.strokeIndex} className="w-9 px-0 text-center min-h-9 py-1 font-mono" aria-label={`Hole ${h.number} stroke index`} />
+                        <input name={`si_${i}`} inputMode="numeric" defaultValue={h.strokeIndex} className="w-10 px-0 text-center min-h-10 py-1 font-mono" aria-label={`Hole ${h.number} stroke index`} />
                       </td>
                     ))}
                   </tr>

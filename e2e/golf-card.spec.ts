@@ -102,6 +102,22 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   expect(row.holes[0].par).toBe(5);
   expect(row.uses).toBe(2);
 
+  // Typing the same course and tee again corrects the library row rather than adding a second one.
+  const change = org.locator("details", { hasText: "Change course" });
+  await change.locator("summary").click();
+  await change.locator('input[aria-label="Course name"]').fill(course.toUpperCase());
+  await change.locator('input[aria-label="Tee set"]').fill("white");
+  await change.locator('input[aria-label="Pars in hole order"]').fill("4 4 3 5 4 4 3 4 5");
+  await change.locator('input[aria-label="Stroke indexes in hole order"]').fill("5 3 9 1 7 4 8 6 2");
+  await change.locator('button:has-text("Preview card")').click();
+  await change.locator('button:has-text("Use this card")').click();
+  await expect(org.getByText("9 holes · par 36").first()).toBeVisible();
+  const again = (await (await ctx.request.get(`/api/courses/search?q=${encodeURIComponent(`Links ${stamp}`)}`)).json()) as { hits: { name: string; uses: number; holes: { par: number }[] }[] };
+  const mine = again.hits.filter((h) => h.name.toLowerCase() === course.toLowerCase());
+  expect(mine).toHaveLength(1);
+  expect(mine[0].uses).toBe(3);
+  expect(mine[0].holes[0].par).toBe(4);
+
   // Lookups need a signed-in member: no cookie, no data (and no free proxy to the providers).
   expect((await request.get("/api/places?q=richmond")).status()).toBe(401);
   expect((await request.get("/api/courses/search?q=richmond")).status()).toBe(401);

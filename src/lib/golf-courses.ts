@@ -2,7 +2,7 @@ import "server-only";
 import { desc, eq, like, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { newId } from "@/lib/ids";
-import { hitsFromGolfApi, mergeHits, validateHoles, type CourseCard, type CourseHit, type GolfApiCourse } from "@/domain/courses";
+import { courseKey, hitsFromGolfApi, mergeHits, validateHoles, type CourseCard, type CourseHit, type GolfApiCourse } from "@/domain/courses";
 import type { Hole } from "@/domain/stableford";
 
 /**
@@ -64,11 +64,16 @@ export async function resolveProviderCourse(ref: string): Promise<CourseHit | nu
   const key = process.env.GOLF_COURSE_API_KEY;
   const m = /^golfcourseapi:([^:]+):(.*)$/.exec(ref);
   if (!key || !m) return null;
-  const res = await fetch(`https://api.golfcourseapi.com/v1/courses/${encodeURIComponent(m[1])}`, { headers: { Authorization: `Key ${key}` }, signal: AbortSignal.timeout(5000) });
-  if (!res.ok) return null;
-  const body = (await res.json()) as { course?: GolfApiCourse } & GolfApiCourse;
-  const hits = hitsFromGolfApi(body.course ?? body);
-  return hits.find((h) => h.tee.toLowerCase() === m[2].toLowerCase()) ?? hits[0] ?? null;
+  try {
+    const res = await fetch(`https://api.golfcourseapi.com/v1/courses/${encodeURIComponent(m[1])}`, { headers: { Authorization: `Key ${key}` }, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { course?: GolfApiCourse } & GolfApiCourse;
+    const hits = hitsFromGolfApi(body?.course ?? body ?? {});
+    return hits.find((h) => h.tee.toLowerCase() === m[2].toLowerCase()) ?? hits[0] ?? null;
+  } catch (e) {
+    console.error("golfcourseapi course fetch failed", e);
+    return null;
+  }
 }
 
 export async function getCourse(id: string): Promise<schema.Course | null> {
@@ -87,10 +92,23 @@ export async function upsertCourse(card: CourseCard, opts: { source: "manual" | 
   const values = { name: card.name.trim().slice(0, 80), club: card.club.trim().slice(0, 80), address: card.address.trim().slice(0, 120), tee: card.tee.trim().slice(0, 20), holes: JSON.stringify(holes) };
   if (!values.name) throw new Error("UI:Give the course a name.");
   if (opts.externalId) {
+    // Already imported: the library copy may carry corrections from whoever played it, so keep it and count the use.
     const existing = (await db.select().from(schema.courses).where(eq(schema.courses.externalId, opts.externalId)).limit(1))[0];
     if (existing) {
-      await db.update(schema.courses).set({ ...values, updatedAt: now, uses: sql`${schema.courses.uses} + 1` }).where(eq(schema.courses.id, existing.id));
+      await countUse(existing.id);
       return (await getCourse(existing.id))!;
+    }
+  } else {
+    // Typed or scanned: the same course and tee already in the library is a correction of it, not a second row.
+    const key = courseKey(values.name, values.tee);
+    const candidates = await db.select().from(schema.courses).where(like(schema.courses.name, `%${values.name.split(" ")[0].replace(/[%_]/g, "")}%`)).limit(50);
+    const same = candidates.find((c) => courseKey(c.name, c.tee) === key);
+    if (same) {
+      await db
+        .update(schema.courses)
+        .set({ holes: values.holes, address: values.address || same.address, club: values.club || same.club, updatedAt: now, uses: sql`${schema.courses.uses} + 1` })
+        .where(eq(schema.courses.id, same.id));
+      return (await getCourse(same.id))!;
     }
   }
   const id = newId();

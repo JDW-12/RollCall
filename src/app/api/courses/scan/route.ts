@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { CourseError } from "@/domain/courses";
 import { scanConfigured, scanScorecard } from "@/lib/scan-card";
 import { allow } from "@/lib/ratelimit";
+import { organisesAnyCrew } from "@/lib/queries";
 
 /** Vercel rejects request bodies over 4.5 MB before the function runs; the picker shrinks photos client-side to stay well under. */
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -12,6 +13,8 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   if (!scanConfigured()) return NextResponse.json({ error: "Scanning isn't switched on." }, { status: 503 });
+  // Only organisers can set a course, so only organisers get to spend on scans.
+  if (!(await organisesAnyCrew(user.id))) return NextResponse.json({ error: "Only an organiser can scan a card." }, { status: 403 });
   let file: File | null = null;
   try {
     const fd = await req.formData();

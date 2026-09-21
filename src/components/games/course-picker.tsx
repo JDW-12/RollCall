@@ -21,6 +21,7 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
   // Results only count while the query that produced them is still long enough to search.
   const hits = q.trim().length >= 2 ? found : [];
   const [searching, setSearching] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -47,8 +48,9 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
   }, [q]);
 
   async function scan(file: File) {
+    if (scanning) return;
     setError(null);
-    setSearching(true);
+    setScanning(true);
     const fd = new FormData();
     try {
       fd.append("image", await shrink(file));
@@ -59,7 +61,7 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
     } catch {
       setError("Upload failed. Check your signal and try again.");
     } finally {
-      setSearching(false);
+      setScanning(false);
     }
   }
 
@@ -97,7 +99,7 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
                 <input type="hidden" name="sessionId" value={sessionId} />
                 <input type="hidden" name="mode" value={h.source} />
                 <input type="hidden" name="ref" value={h.ref} />
-                <SubmitButton variant="secondary" className="min-h-9 px-3 text-sm" pendingText="Setting…">
+                <SubmitButton variant="secondary" className="min-h-10 px-3 text-sm" pendingText="Setting…">
                   Use
                 </SubmitButton>
               </ActionForm>
@@ -110,14 +112,24 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
 
       <div className={cls("grid gap-3", scanOn ? "sm:grid-cols-2" : "")}>
         {scanOn ? (
-          <label className="press flex items-center gap-3 rounded-md border border-dashed border-line bg-panel-2 px-3 py-3 cursor-pointer hover:border-ink-3">
-            <IconCamera size={22} className="text-pitch shrink-0" />
+          <label className={cls("press flex items-center gap-3 rounded-md border border-dashed border-line bg-panel-2 px-3 py-3 cursor-pointer hover:border-ink-3", scanning && "opacity-70 cursor-wait")} aria-busy={scanning}>
+            <IconCamera size={22} className={cls("shrink-0", scanning ? "text-ink-3 anim-pulse" : "text-pitch")} />
             <span className="text-sm">
-              <strong>Scan the paper card</strong>
+              <strong>{scanning ? "Reading the card…" : "Scan the paper card"}</strong>
               <br />
-              <span className="text-ink-2">Photo of the scorecard. You check it before it&apos;s used.</span>
+              <span className="text-ink-2">{scanning ? "Ten seconds or so. Don't tap again." : "Photo of the scorecard, camera or camera roll. You check it before it's used."}</span>
             </span>
-            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => e.target.files?.[0] && scan(e.target.files[0])} />
+            <input
+              type="file"
+              accept="image/*"
+              disabled={scanning}
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = ""; // so choosing the same photo again still fires
+                if (f) scan(f);
+              }}
+            />
           </label>
         ) : null}
         <form
@@ -134,7 +146,7 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
           </div>
           <input name="pars" placeholder="Pars: 4 4 3 5 4 4 3 4 5 4 3 4 5 4 4 3 4 5" inputMode="numeric" aria-label="Pars in hole order" className="font-mono text-sm" required />
           <input name="si" placeholder="Stroke index: 7 3 15 1 11 9 17 5 13 …" inputMode="numeric" aria-label="Stroke indexes in hole order" className="font-mono text-sm" />
-          <button type="submit" className="press self-start rounded-md border border-line px-3 min-h-9 text-sm font-semibold hover:border-ink-3">
+          <button type="submit" className="press self-start rounded-md border border-line px-3 min-h-10 text-sm font-semibold hover:border-ink-3">
             Preview card
           </button>
         </form>
@@ -209,7 +221,7 @@ function DraftCard({ sessionId, draft, onChange }: { sessionId: string; draft: D
               <td className="pr-2">Par</td>
               {draft.holes.map((h, i) => (
                 <td key={h.number} className="px-0.5">
-                  <input value={h.par || ""} onChange={(e) => setHole(i, "par", e.target.value)} inputMode="numeric" className="w-9 px-0 text-center min-h-9 py-1 font-mono" aria-label={`Hole ${h.number} par`} />
+                  <input value={h.par || ""} onChange={(e) => setHole(i, "par", e.target.value)} inputMode="numeric" className="w-10 px-0 text-center min-h-10 py-1 font-mono" aria-label={`Hole ${h.number} par`} />
                 </td>
               ))}
             </tr>
@@ -217,7 +229,7 @@ function DraftCard({ sessionId, draft, onChange }: { sessionId: string; draft: D
               <td className="pr-2">SI</td>
               {draft.holes.map((h, i) => (
                 <td key={h.number} className="px-0.5">
-                  <input value={h.strokeIndex || ""} onChange={(e) => setHole(i, "strokeIndex", e.target.value)} inputMode="numeric" className="w-9 px-0 text-center min-h-9 py-1 font-mono" aria-label={`Hole ${h.number} stroke index`} />
+                  <input value={h.strokeIndex || ""} onChange={(e) => setHole(i, "strokeIndex", e.target.value)} inputMode="numeric" className="w-10 px-0 text-center min-h-10 py-1 font-mono" aria-label={`Hole ${h.number} stroke index`} />
                 </td>
               ))}
             </tr>

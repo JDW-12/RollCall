@@ -73,3 +73,5 @@ SQLite: copy the file (`sqlite3 data/rollcall.db ".backup backup.db"`) or use Tu
 - Share-card image routes are public by design. Do not put anything sensitive in a card.
 - Login codes are single use and expire in 10 minutes; the table can be pruned freely.
 - Rotate a crew's invite link from Crew settings if it leaks.
+- The golf course library is shared across crews and any organiser can correct a card. Sessions keep their own copy, so a bad edit only affects later picks; if that gets abused, the fix is a per-crew overlay rather than a shared row.
+- Lookups and scans are capped per user and per deployment (see `src/lib/ratelimit.ts`); scans are organiser-only.

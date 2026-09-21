@@ -35,7 +35,8 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
         const body = (await res.json()) as { hits?: PlaceHit[] };
         if (!ac.signal.aborted) {
           setHits(body.hits ?? []);
-          setOpen(true);
+          // Only pop the list if the venue field still has focus; otherwise it lands on top of the next field.
+          setOpen(document.activeElement === inputRef.current);
           setActive(-1);
         }
       } catch {

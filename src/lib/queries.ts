@@ -153,3 +153,13 @@ export async function golfRounds(crewId: string): Promise<import("@/domain/golf-
     .where(and(eq(schema.sessions.crewId, crewId), eq(schema.games.kind, "stableford"), ne(schema.sessions.status, "cancelled")));
   return rows.map((r) => ({ sessionId: r.sessionId, title: r.title, startsAt: r.startsAt.getTime(), card: JSON.parse(r.data) }));
 }
+
+export async function organisesAnyCrew(userId: string): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db
+    .select({ id: schema.crewMembers.id })
+    .from(schema.crewMembers)
+    .where(and(eq(schema.crewMembers.userId, userId), eq(schema.crewMembers.role, "organiser")))
+    .limit(1);
+  return rows.length > 0;
+}

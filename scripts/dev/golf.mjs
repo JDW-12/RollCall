@@ -1,7 +1,8 @@
 import { chromium } from "@playwright/test";
 const base = "http://localhost:3200";
-const out = "/tmp/claude-0/-home-user-Remoovals/9aaf5bb5-a8d7-505a-9eb5-464ae059be3c/scratchpad/shots";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+// Usage: SHOTS_DIR=./shots [PLAYWRIGHT_CHROMIUM_PATH=...] node scripts/dev/golf.mjs, against `next start -p 3200` on a fresh DB.
+const out = process.env.SHOTS_DIR ?? "./shots";
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
 await page.goto(base + "/start");
