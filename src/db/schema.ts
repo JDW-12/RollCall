@@ -300,6 +300,36 @@ export const events = sqliteTable(
   (t) => [index("events_kind_idx").on(t.kind, t.createdAt), index("events_crew_idx").on(t.crewId)],
 );
 
+/**
+ * Golf course cards: par and stroke index per hole for one set of tees. Seeded from a course-data
+ * API, a scanned paper card or an organiser typing it in, then corrected by whoever plays there.
+ * Shared across crews: once one crew has fixed a course, the next crew gets the corrected version.
+ */
+export const courses = sqliteTable(
+  "courses",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    /** Club name when it differs from the course (e.g. "Richmond Park" club, "Prince's" course). */
+    club: text("club").notNull().default(""),
+    address: text("address").notNull().default(""),
+    /** Tee set the card is for: "White", "Yellow", "Red"... empty when the source didn't say. */
+    tee: text("tee").notNull().default(""),
+    /** JSON array of { number, par, strokeIndex }. 9 or 18 holes. */
+    holes: text("holes").notNull(),
+    /** manual | api | scan */
+    source: text("source").notNull().default("manual"),
+    /** Provider id (e.g. golfcourseapi course id + tee) so the same card isn't imported twice. */
+    externalId: text("external_id"),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+    /** How many sessions have used this card. Ranks search results. */
+    uses: integer("uses").notNull().default(0),
+  },
+  (t) => [index("courses_name_idx").on(t.name), uniqueIndex("courses_external_idx").on(t.externalId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Crew = typeof crews.$inferSelect;
 export type CrewMember = typeof crewMembers.$inferSelect;
@@ -311,3 +341,4 @@ export type LedgerEntry = typeof ledger.$inferSelect;
 export type Game = typeof games.$inferSelect;
 export type GameEntry = typeof gameEntries.$inferSelect;
 export type FeedItem = typeof feed.$inferSelect;
+export type Course = typeof courses.$inferSelect;

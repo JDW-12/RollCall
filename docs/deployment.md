@@ -13,6 +13,9 @@
 | `PLATFORM_FEE_BPS`, `PLATFORM_FEE_FIXED_PENCE` | Roll Call fee on card payments, default 2.5% + 20p. |
 | `CRON_SECRET` | Bearer token Vercel Cron sends to `/api/cron/reminders`. |
 | `FOUNDER_EMAILS` | Who can open `/founder`. |
+| `GOOGLE_MAPS_API_KEY` | Venue finder on the session form via Google Places Autocomplete (New). Empty uses Photon (OpenStreetMap, no key). |
+| `GOLF_COURSE_API_KEY` | golfcourseapi.com key so golf course search reaches beyond our own library. |
+| `ANTHROPIC_API_KEY` | Scorecard scanning (photo of the paper card). Empty hides the option. |
 
 Migrations run automatically on first database connection. To run them explicitly: `npm run db:migrate`.
 
@@ -55,6 +58,10 @@ npm run check && npm run build && PLAYWRIGHT_CHROMIUM_PATH=... npm run test:e2e
 3. Add a webhook endpoint at `https://<domain>/api/stripe/webhook` for `checkout.session.completed` and `account.updated`; set `STRIPE_WEBHOOK_SECRET`.
 4. An organiser opens Crew settings → "Set up card payments" and completes Stripe's hosted onboarding. When Stripe reports charges enabled, members see "Pay £x by card" wherever they owe.
 Payments are destination charges to the organiser's account with Roll Call's fee as the application fee. Roll Call never holds funds.
+
+## Venue finder and golf cards
+- The session form's venue field looks places up as you type (`/api/places`, members only). With `GOOGLE_MAPS_API_KEY` it uses Places Autocomplete (New) restricted to GB and biased to London; restrict the key to that API in Google Cloud. Without a key it uses Photon, which is fine for a pilot but has no uptime promise.
+- Golf sessions have a course picker: search our `courses` library first, then golfcourseapi.com when `GOLF_COURSE_API_KEY` is set (UK results only). Using a provider card copies it into the library. Organisers can also scan a photo of the card (`ANTHROPIC_API_KEY`) or type the par and stroke-index rows; both can be saved to the library. Corrections made from "Fix pars and stroke indexes" update the library copy, so the next crew gets the right card.
 
 ## Reminders
 `vercel.json` schedules `/api/cron/reminders` daily at 09:00 UTC (Hobby plans allow one daily cron; Pro can run it hourly). The job emails members who haven't answered a session whose commit-by moment is within 24 hours, and the organiser a headcount, once per session. It needs `CRON_SECRET` and `RESEND_API_KEY`. Members without an email are skipped; the organiser's "Nudge the stragglers" button covers them through WhatsApp.

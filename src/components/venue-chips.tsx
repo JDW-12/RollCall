@@ -10,7 +10,12 @@ export function VenueChips({ venues }: { venues: VenueSuggestion[] }) {
     if (!form) return;
     const name = form.elements.namedItem("venueName") as HTMLInputElement | null;
     const addr = form.elements.namedItem("venueAddress") as HTMLInputElement | null;
-    if (name) name.value = v.name;
+    if (name) {
+      // The venue input is a controlled React input: go through the native setter so React sees the change.
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(name, v.name);
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    }
     if (addr && v.address) addr.value = v.address;
     name?.focus();
   }

@@ -8,7 +8,9 @@ import { newId } from "@/lib/ids";
 import { getSessionBundle, getCrewTable } from "@/lib/queries";
 import { balanceTeams } from "@/domain/teams";
 import { generateAmericano, type Americano } from "@/domain/americano";
-import { defaultHoles, type StablefordCard } from "@/domain/stableford";
+import { defaultHoles, resizeStrokes, type StablefordCard } from "@/domain/stableford";
+import { CourseError, validateHoles, type CourseCard } from "@/domain/courses";
+import { correctCourse, countUse, getCourse, resolveProviderCourse, upsertCourse } from "@/lib/golf-courses";
 import { DEFAULT_GRID, type PredictorGame, type Prediction } from "@/domain/predictor";
 import { playing } from "@/domain/rsvp";
 import { act, addFeed, str, uiError, type ActionState } from "./shared";
@@ -102,11 +104,20 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
     const mode = str(fd, "mode");
     if (mode === "holes") {
       if (!ctx.isOrganiser) uiError("Only an organiser can edit the course.");
-      card.holes = card.holes.map((h, i) => ({
-        number: h.number,
-        par: Math.max(3, Math.min(6, Number(str(fd, `par_${i}`)) || h.par)),
-        strokeIndex: Math.max(1, Math.min(18, Number(str(fd, `si_${i}`)) || h.strokeIndex)),
-      }));
+      try {
+        card.holes = validateHoles(
+          card.holes.map((h, i) => ({
+            number: h.number,
+            par: Number(str(fd, `par_${i}`)) || h.par,
+            strokeIndex: Number(str(fd, `si_${i}`)) || h.strokeIndex,
+          })),
+        );
+      } catch (e) {
+        if (e instanceof CourseError) uiError(e.message);
+        throw e;
+      }
+      // A correction to a library card fixes it for everyone who plays there next.
+      if (card.course?.id) await correctCourse(card.course.id, card.holes);
     } else {
       const hcp = str(fd, "handicap");
       if (hcp !== "") card.handicaps[targetUser] = Math.max(0, Math.min(54, Number(hcp) || 0));
@@ -120,6 +131,52 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
     await upsertGame(bundle.session.id, "stableford", card);
     revalidatePath(`/crew/${ctx.crew.slug}/s/${bundle.session.id}`);
     return { ok: true, message: "Card saved." };
+  });
+}
+
+/**
+ * Golf: organiser picks the course card. From the library (ref = course id), from the provider
+ * (ref = provider reference, re-fetched server side), or typed / scanned holes sent as JSON, which
+ * can also be saved to the library so the next crew finds them.
+ */
+export async function setCourse(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  return act(async () => {
+    const { bundle, ctx } = await loadForGame(str(fd, "sessionId"));
+    const existing = bundle.games.find((g) => g.kind === "stableford");
+    const card: StablefordCard = existing ? (JSON.parse(existing.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
+    const mode = str(fd, "mode");
+    try {
+      if (mode === "library") {
+        const row = await getCourse(str(fd, "ref"));
+        if (!row) uiError("That course isn't in the library any more.");
+        card.holes = validateHoles(JSON.parse(row.holes));
+        card.course = { id: row.id, name: row.name, tee: row.tee };
+        await countUse(row.id);
+      } else if (mode === "api") {
+        const hit = await resolveProviderCourse(str(fd, "ref"));
+        if (!hit) uiError("Couldn't fetch that course. Try the search again.");
+        const row = await upsertCourse(hit, { source: "api", externalId: hit.ref, userId: ctx.user.id });
+        card.holes = validateHoles(JSON.parse(row.holes));
+        card.course = { id: row.id, name: row.name, tee: row.tee };
+      } else if (mode === "manual" || mode === "scan") {
+        const holes = validateHoles(JSON.parse(str(fd, "holes") || "[]"));
+        const typed: CourseCard = { name: str(fd, "name"), club: str(fd, "club"), address: str(fd, "address"), tee: str(fd, "tee"), holes };
+        if (!typed.name) uiError("Give the course a name so the crew knows which card this is.");
+        card.holes = holes;
+        if (str(fd, "save") === "1") {
+          const row = await upsertCourse(typed, { source: mode, userId: ctx.user.id });
+          card.course = { id: row.id, name: row.name, tee: row.tee };
+        } else card.course = { id: null, name: typed.name, tee: typed.tee };
+      } else uiError("Pick a course first.");
+    } catch (e) {
+      if (e instanceof CourseError) uiError(e.message);
+      if (e instanceof SyntaxError) uiError("That card didn't come through properly. Try again.");
+      throw e;
+    }
+    card.strokes = resizeStrokes(card.strokes, card.holes.length);
+    await upsertGame(bundle.session.id, "stableford", card);
+    revalidatePath(`/crew/${ctx.crew.slug}/s/${bundle.session.id}`);
+    return { ok: true, message: `Course set: ${card.course?.name ?? "custom card"}.` };
   });
 }
 

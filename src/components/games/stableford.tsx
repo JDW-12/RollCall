@@ -5,11 +5,15 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconGolf } from "@/components/icons";
 import { Field, Panel, cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
+import { courseLabel } from "@/domain/courses";
+import { CoursePicker } from "./course-picker";
 
-export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string }) {
+export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId, providerOn = false, scanOn = false }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string; providerOn?: boolean; scanOn?: boolean }) {
   const card: StablefordCard = game ? (JSON.parse(game.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
   const totals = stablefordTotals(card);
   const name = (id: string) => members.find((m) => m.id === id)?.name ?? "?";
+  // Uncontrolled inputs keep their first defaultValue, so forms remount whenever the course changes.
+  const courseKey = card.holes.map((h) => `${h.par}/${h.strokeIndex}`).join(",");
   const editable = playerIds.includes(myId) ? [myId, ...(isOrganiser ? playerIds.filter((p) => p !== myId) : [])] : isOrganiser ? playerIds : [];
   const summaryCls = "px-3 py-2.5 text-sm font-semibold cursor-pointer flex items-center justify-between gap-3 list-none";
   return (
@@ -23,6 +27,14 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
           {card.holes.length} holes · par {card.holes.reduce((a, h) => a + h.par, 0)}
         </span>
       </div>
+      {card.course ? (
+        <p className="text-sm text-ink-2 -mt-2">
+          Card: <strong className="text-ink">{courseLabel(card.course)}</strong>
+          {card.course.id ? " · from the course library" : ""}
+        </p>
+      ) : isOrganiser ? (
+        <p className="text-sm text-ink-2 -mt-2">Using a standard par-72 layout. Pick the real course below so the points are right.</p>
+      ) : null}
       {totals.length ? (
         <div className="overflow-x-auto -mx-1 px-1">
           <table className="w-full text-sm font-mono tnum">
@@ -60,7 +72,7 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
             <span>{uid === myId ? "Your card" : `${name(uid)}'s card`}</span>
             <span className="eyebrow">{card.strokes[uid] ? "Saved" : "Empty"}</span>
           </summary>
-          <ActionForm action={saveStableford} className="px-3 pb-3">
+          <ActionForm key={courseKey} action={saveStableford} className="px-3 pb-3">
             <input type="hidden" name="sessionId" value={sessionId} />
             <input type="hidden" name="userId" value={uid} />
             <Field label="Playing handicap">
@@ -113,12 +125,23 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
         </details>
       ))}
       {isOrganiser ? (
-        <details className="rounded-md border border-line bg-panel-2 overflow-hidden">
+        <details className="rounded-md border border-line bg-panel-2 overflow-hidden" open={!card.course && !totals.length}>
           <summary className={summaryCls}>
-            <span>Course: pars and stroke indexes</span>
+            <span>{card.course ? "Change course" : "Pick the course"}</span>
             <span className="eyebrow">Organiser</span>
           </summary>
-          <ActionForm action={saveStableford} className="px-3 pb-3">
+          <div className="px-3 pb-3">
+            <CoursePicker sessionId={sessionId} providerOn={providerOn} scanOn={scanOn} />
+          </div>
+        </details>
+      ) : null}
+      {isOrganiser ? (
+        <details className="rounded-md border border-line bg-panel-2 overflow-hidden">
+          <summary className={summaryCls}>
+            <span>Fix pars and stroke indexes</span>
+            <span className="eyebrow">{card.course?.id ? "Updates the library" : "Organiser"}</span>
+          </summary>
+          <ActionForm key={courseKey} action={saveStableford} className="px-3 pb-3">
             <input type="hidden" name="sessionId" value={sessionId} />
             <input type="hidden" name="mode" value="holes" />
             <input type="hidden" name="userId" value={playerIds[0] ?? myId} />

@@ -26,6 +26,8 @@ import { Button, Eyebrow, LinkButton, Notice, Panel, Pill, Stat, cls } from "@/c
 import { TeamsPanel } from "@/components/games/teams";
 import { AmericanoPanel } from "@/components/games/americano";
 import { StablefordPanel } from "@/components/games/stableford";
+import { courseApiConfigured } from "@/lib/golf-courses";
+import { scanConfigured } from "@/lib/scan-card";
 import { PredictorPanel } from "@/components/games/predictor";
 import { recordPayment, reopenSession } from "@/lib/actions/session";
 import { fmtLong, fmtTime, pounds, relativeDay } from "@/lib/format";
@@ -390,7 +392,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
           <Eyebrow>Side games</Eyebrow>
           {sport.games.includes("teams") ? <TeamsPanel sessionId={session.id} game={game("teams")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
           {sport.games.includes("americano") ? <AmericanoPanel sessionId={session.id} game={game("americano")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
-          {sport.games.includes("stableford") ? <StablefordPanel sessionId={session.id} game={game("stableford")} members={members} isOrganiser={isOrganiser} playerIds={inRows.map((r) => r.userId)} myId={user.id} /> : null}
+          {sport.games.includes("stableford") ? <StablefordPanel sessionId={session.id} game={game("stableford")} members={members} isOrganiser={isOrganiser} playerIds={inRows.map((r) => r.userId)} myId={user.id} providerOn={courseApiConfigured()} scanOn={scanConfigured()} /> : null}
           {sport.games.includes("predictor") ? <PredictorPanel sessionId={session.id} game={game("predictor")} entries={entries} members={members} isOrganiser={isOrganiser} myId={user.id} locksAt={session.startsAt.getTime()} /> : null}
         </section>
       ) : null}

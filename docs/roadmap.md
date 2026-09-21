@@ -23,7 +23,7 @@ The core loop, web-first as a PWA, zero install for members.
 
 ## v1.1: shipped ahead of the pilot
 
-Reminders, Stripe Connect card payments, season awards, public previews of shared links, referral tracking and the founder dashboard are built. Also shipped: account merge for guests and calendar export. Remaining from the original v1.1 list: a venue directory.
+Reminders, Stripe Connect card payments, season awards, public previews of shared links, referral tracking and the founder dashboard are built. Also shipped: account merge for guests and calendar export, a venue address finder on the session form (Google Places or OpenStreetMap), and golf course cards: a shared library of par and stroke index per course and tee, seeded from a course-data API, a scanned photo of the paper card, or typed in, and corrected by whoever plays there next. Remaining from the original v1.1 list: a venue directory.
 
 ## v1.1 original scope (target months 4 to 6)
 
@@ -55,7 +55,6 @@ Only after 300 active London crews.
 - Strava and Hevy import for gym crew streaks
 - Karting and sim racing results as a side game
 - Second UK city
-- Golf course cards: search by name or postcode against a course-data API to pre-fill par and stroke index per hole, organiser edits and saves to the crew venue, corrected cards stored per course and tee, plus a scan-the-paper-card option for courses no API covers. Build after the first golf crew has logged a few rounds by hand, so the courses that matter are known
 - One-off premium crew features (custom card designs, extended history), priced per season
 
 ## Non-goals

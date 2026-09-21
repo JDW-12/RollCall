@@ -17,6 +17,7 @@
     "check": "npm run typecheck && npm run lint && npm test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.2",
     "nanoid": "^5.1.16",

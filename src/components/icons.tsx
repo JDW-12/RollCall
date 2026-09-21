@@ -41,6 +41,12 @@ export const IconPadel = ({ size = 22, ...p }: P) => (
 export const IconGolf = ({ size = 22, ...p }: P) => (
   <svg {...base(size, p)}><path d="M9 3v14" /><path d="M9 3.5 17 7l-8 3.5" /><ellipse cx="11" cy="19" rx="6" ry="2.5" /></svg>
 );
+export const IconSearch = ({ size = 22, ...p }: P) => (
+  <svg {...base(size, p)}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
+);
+export const IconCamera = ({ size = 22, ...p }: P) => (
+  <svg {...base(size, p)}><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.5-2h5L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-9Z" /><circle cx="12" cy="13" r="3.5" /></svg>
+);
 export const IconGym = ({ size = 22, ...p }: P) => (
   <svg {...base(size, p)}><path d="M3 10v4M21 10v4M5.5 8v8M18.5 8v8" /><rect x="7.5" y="6.5" width="2.5" height="11" rx="1" /><rect x="14" y="6.5" width="2.5" height="11" rx="1" /><path d="M10 12h4" /></svg>
 );

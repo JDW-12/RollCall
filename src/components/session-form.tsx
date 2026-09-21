@@ -6,6 +6,7 @@ import { fmtDay, pounds, toLocalInput } from "@/lib/format";
 import { SportIcon } from "./icons";
 import { Eyebrow, Field } from "./ui";
 import { VenueChips } from "./venue-chips";
+import { VenueSearch } from "./venue-search";
 import type { VenueSuggestion } from "@/domain/venues";
 
 /** Fields for creating or editing a session. Rendered inside an ActionForm. */
@@ -47,14 +48,7 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
           </Field>
         </div>
         <VenueChips venues={venues} />
-        <Field label="Venue" hint={sport.venueHint}>
-          <input name="venueName" maxLength={80} defaultValue={session?.venueName ?? ""} list="venue-names" autoComplete="off" />
-          <datalist id="venue-names">
-            {venues.map((v) => (
-              <option key={v.name} value={v.name} />
-            ))}
-          </datalist>
-        </Field>
+        <VenueSearch defaultValue={session?.venueName ?? ""} hint={sport.venueHint} />
         <Field label="Address or postcode" hint="Optional. Shows on the share card.">
           <input name="venueAddress" maxLength={120} defaultValue={session?.venueAddress ?? ""} autoComplete="off" />
         </Field>

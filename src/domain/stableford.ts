@@ -7,6 +7,8 @@ export type Hole = { number: number; par: number; strokeIndex: number };
 
 export type StablefordCard = {
   holes: Hole[];
+  /** Where the holes came from, when picked from the library or a provider. Null id = typed or scanned but not saved. */
+  course?: { id: string | null; name: string; tee: string } | null;
   /** userId -> playing handicap (whole shots) */
   handicaps: Record<string, number>;
   /** userId -> gross strokes per hole (null = not entered / picked up) */
@@ -57,6 +59,13 @@ export function stablefordTotals(card: StablefordCard): StablefordTotal[] {
     out.push({ userId, points, gross: complete ? gross : null, holesPlayed, front, back });
   }
   return out.sort((a, b) => b.points - a.points || b.back - a.back || a.userId.localeCompare(b.userId));
+}
+
+/** Keeps each player's strokes aligned when the course changes length (9 <-> 18 holes). */
+export function resizeStrokes(strokes: Record<string, (number | null)[]>, holeCount: number): Record<string, (number | null)[]> {
+  const out: Record<string, (number | null)[]> = {};
+  for (const [uid, arr] of Object.entries(strokes)) out[uid] = Array.from({ length: holeCount }, (_, i) => arr[i] ?? null);
+  return out;
 }
 
 /** A sensible default 18-hole layout so a card can be started before anyone types pars in. */
