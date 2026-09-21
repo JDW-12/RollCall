@@ -23,7 +23,7 @@ The core loop, web-first as a PWA, zero install for members.
 
 ## v1.1: shipped ahead of the pilot
 
-Reminders, Stripe Connect card payments, season awards, public previews of shared links, referral tracking and the founder dashboard are built. Remaining from the original v1.1 list: calendar export and a venue directory.
+Reminders, Stripe Connect card payments, season awards, public previews of shared links, referral tracking and the founder dashboard are built. Also shipped: account merge for guests and calendar export. Remaining from the original v1.1 list: a venue directory.
 
 ## v1.1 original scope (target months 4 to 6)
 

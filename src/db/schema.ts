@@ -74,11 +74,14 @@ export const crews = sqliteTable(
     /** Stripe Express account that receives card payments for this crew. Null until an organiser connects one. */
     stripeAccountId: text("stripe_account_id"),
     stripeChargesEnabled: integer("stripe_charges_enabled", { mode: "boolean" }).notNull().default(false),
+    /** Secret in the crew's calendar-feed URL. Rotates with the invite link. */
+    calendarToken: text("calendar_token"),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
     uniqueIndex("crews_slug_idx").on(t.slug),
     uniqueIndex("crews_invite_idx").on(t.inviteToken),
+    uniqueIndex("crews_calendar_idx").on(t.calendarToken),
   ],
 );
 

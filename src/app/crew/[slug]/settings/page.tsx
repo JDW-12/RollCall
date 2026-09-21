@@ -8,6 +8,8 @@ import { Avatar } from "@/components/avatar";
 import { ShareButtons } from "@/components/share";
 import { StripeConnectPanel } from "@/components/stripe-connect";
 import { refreshStripe } from "@/lib/actions/stripe";
+import { ensureCalendarToken } from "@/lib/actions/crew";
+import { CalendarBlock } from "@/components/calendar-block";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconPeople, IconPin, IconShare, SportIcon } from "@/components/icons";
 import { Button, Eyebrow, Field, Panel, Pill } from "@/components/ui";
@@ -27,6 +29,7 @@ export default async function SettingsPage({ params, searchParams }: { params: P
     await refreshStripe(crew.id);
     crew = (await requireCrewPage(slug)).crew;
   }
+  if (!crew.calendarToken) crew = { ...crew, calendarToken: await ensureCalendarToken(crew.id) };
   const members = await listMembers(crew.id);
   const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
@@ -133,6 +136,8 @@ export default async function SettingsPage({ params, searchParams }: { params: P
           ))}
         </div>
       </Panel>
+
+      <CalendarBlock crew={crew} appUrl={await appUrl()} />
 
       {isOrganiser ? <StripeConnectPanel crew={crew} /> : null}
 

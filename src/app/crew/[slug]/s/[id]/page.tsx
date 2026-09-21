@@ -17,6 +17,7 @@ import { RsvpButtons } from "./rsvp-buttons";
 import { Avatar } from "@/components/avatar";
 import { ShareButtons } from "@/components/share";
 import { PayByCard } from "@/components/pay";
+import { IconCalendar } from "@/components/icons";
 import { Ring } from "@/components/ring";
 import { Countdown } from "@/components/countdown";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -218,6 +219,9 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
               </p>
             ) : null}
             <ShareButtons text={shareText} url={url} crewId={crew.id} sessionId={session.id} what={shareWhat} compact />
+            <a href={`/crew/${crew.slug}/s/${session.id}/calendar.ics`} className="press inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink self-start">
+              <IconCalendar size={16} /> Add to calendar
+            </a>
           </Panel>
 
           <Panel className="mt-3 divide-y divide-line-2 overflow-hidden anim-rise-3">

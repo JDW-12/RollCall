@@ -37,6 +37,10 @@ Demo crews:
 - `/crew/battersea-padel` – padel four with one upcoming match and a reserve waiting.
 - `/join/tuesdayfc-demo-invite` – the zero-install join flow.
 
+## Reminders, payments, calendar
+
+A daily cron emails non-responders before the commit-by deadline and organisers get a one-tap WhatsApp nudge. Card payments run through Stripe Connect with the fee shown on the button; the webhook path is covered by a signed-event test. Sessions download as `.ics` and every crew has a subscribable calendar feed.
+
 ## Growth loop and pilot dashboard
 
 Shared session and player links open for anyone as a poster with a join action. "Start your own crew" from a preview records the referral. `/crew/<slug>/season` is the shareable awards page. `/founder` (gated by `FOUNDER_EMAILS`) shows the pilot metrics from `docs/metrics.md`.

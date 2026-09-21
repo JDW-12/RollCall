@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { getDb, schema } from "@/db/client";
 import { newId } from "@/lib/ids";
@@ -27,7 +28,10 @@ export async function POST(req: Request) {
     const share = Number(meta.sharePence);
     if (cs.payment_status === "paid" && meta.crewId && meta.userId && share > 0) {
       const db = await getDb();
-      try {
+      const ref = `stripe:${cs.id}`;
+      // Stripe redelivers events; the external reference makes recording idempotent.
+      const seen = await db.select({ id: schema.ledger.id }).from(schema.ledger).where(eq(schema.ledger.externalRef, ref)).limit(1);
+      if (seen.length === 0) {
         await db.insert(schema.ledger).values({
           id: newId(),
           crewId: meta.crewId,
@@ -37,13 +41,10 @@ export async function POST(req: Request) {
           amountPence: share,
           reason: "card",
           note: "Paid by card",
-          externalRef: `stripe:${cs.id}`,
+          externalRef: ref,
           createdBy: "stripe",
           createdAt: new Date(),
         });
-      } catch (e) {
-        // Unique external ref: a redelivered event is a no-op.
-        if (!String(e).includes("UNIQUE")) throw e;
       }
     }
   }

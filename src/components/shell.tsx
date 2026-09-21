@@ -49,7 +49,9 @@ export function CrewShell({ crew, user, active, children, wide = false }: { crew
           </Link>
         </div>
       </header>
-      <main className={cls("flex-1 w-full mx-auto px-4 py-5 pb-28 sm:pb-12", width)}>{children}</main>
+      <main className={cls("flex-1 w-full mx-auto px-4 py-5 pb-28 sm:pb-12", width)} data-crew={crew.id} data-user={user.id}>
+        {children}
+      </main>
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-20 bg-panel/90 backdrop-blur-md border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Crew">
         <div className="grid grid-cols-5">
           {tabs.map((t) => (

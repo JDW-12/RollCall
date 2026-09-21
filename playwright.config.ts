@@ -12,7 +12,7 @@ export default defineConfig({
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : undefined,
   },
   webServer: {
-    command: "DATABASE_URL=file:./data/e2e.db NEXT_PUBLIC_APP_URL=http://localhost:3100 npx next start -p 3100",
+    command: "DATABASE_URL=file:./data/e2e.db NEXT_PUBLIC_APP_URL=http://localhost:3100 STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_e2e_dummy npx next start -p 3100",
     url: "http://localhost:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

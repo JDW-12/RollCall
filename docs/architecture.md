@@ -37,4 +37,4 @@ All user-facing times are Europe/London regardless of server timezone. `datetime
 ## Known limits
 - SQLite file storage is single-writer. Fine for a pilot; for scale use Turso (libsql) which the client already supports via `DATABASE_URL` + `DATABASE_AUTH_TOKEN`.
 - Rater count for form is inferred from vote totals rather than stored. Good enough while everyone answers the first question; a `session_raters` table is the obvious v1.1 fix.
-- Account merging (guest account + existing email account) is not implemented.
+- The Stripe webhook is exercised by an end-to-end test with a genuinely signed event (recorded once, redelivery ignored, bad signature rejected). A live test-mode checkout still needs real keys.

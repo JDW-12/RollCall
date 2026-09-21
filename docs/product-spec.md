@@ -65,12 +65,15 @@ Every session and every player page has an Open Graph image. Sharing the link in
 - **Season awards.** `/crew/<slug>/season`: champion, player of the season, iron man, streak king, grafter, sick note of the season, banter award. Public, with its own share card.
 - **Events.** Share clicks (with what and via), preview views and referral landings are recorded for the pilot dashboard. Nothing is sent to a third party.
 
+## Calendar
+Every session has an "Add to calendar" download for members. Crew settings has a subscribable feed (`/cal/<token>.ics`) that carries titles, times and venues only, never names or money; the token rotates with the invite link.
+
 ## Founder dashboard
 `/founder`, gated by `FOUNDER_EMAILS`. Crews and activation, turn-up and late-drop rates, settlement within seven days, rating completion, week 4/8/12 retention, sessions per week, the growth loop counters, and a per-crew table with last-pinned staleness.
 
 ## Identity
 - Joining from an invite link creates an account from just a name and sets a long-lived cookie.
-- Adding an email later (six-digit code) lets that person sign in on another phone. If the email already belongs to an account, the sign-in switches to that account; v1 does not merge two accounts.
+- Adding an email later (six-digit code) lets that person sign in on another phone. If the email already belongs to an account, the guest account is folded into it: memberships, RSVPs, attendance, votes given and received, money and side-game entries all move across, the existing account wins any conflict, and the guest row is deleted.
 - Under-18s are out of scope and the landing page says so.
 
 ## Screens

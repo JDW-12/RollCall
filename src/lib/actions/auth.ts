@@ -11,6 +11,7 @@ import { endSession, getCurrentUser, isValidEmail, normaliseEmail, startSession 
 import { sendLoginCode } from "@/lib/email";
 import { newId, hueFrom } from "@/lib/ids";
 import { safeNext } from "@/lib/access";
+import { mergeUsers } from "@/lib/merge";
 import { act, str, uiError, type ActionState } from "./shared";
 
 export async function requestCode(_prev: ActionState, fd: FormData): Promise<ActionState> {
@@ -73,7 +74,11 @@ export async function verifyCode(_prev: ActionState, fd: FormData): Promise<Acti
     const existing = (await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1))[0];
     const current = await getCurrentUser();
     let userId: string;
-    if (existing) {
+    if (existing && current && !current.email && current.id !== existing.id) {
+      // A guest from an invite link who already has an account under this email: fold the guest in.
+      await mergeUsers(db, current.id, existing.id);
+      userId = existing.id;
+    } else if (existing) {
       userId = existing.id;
     } else if (current && !current.email) {
       // A guest who joined from an invite link is claiming their account with an email.

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -70,6 +70,7 @@ export async function createCrew(_prev: ActionState, fd: FormData): Promise<Acti
       hue: hueFrom(input.name),
       lateDropHours: input.lateDropHours,
       inviteToken: newToken(),
+      calendarToken: newToken(),
       seasonName: "Season 1",
       seasonStartsAt: now,
       createdBy: user.id,
@@ -143,12 +144,20 @@ export async function updateCrew(_prev: ActionState, fd: FormData): Promise<Acti
   });
 }
 
+/** Crews created before calendar feeds existed get a token the first time settings is opened. */
+export async function ensureCalendarToken(crewId: string): Promise<string> {
+  const db = await getDb();
+  const token = newToken();
+  await db.update(schema.crews).set({ calendarToken: token }).where(and(eq(schema.crews.id, crewId), isNull(schema.crews.calendarToken)));
+  return (await db.select({ t: schema.crews.calendarToken }).from(schema.crews).where(eq(schema.crews.id, crewId)).limit(1))[0]?.t ?? token;
+}
+
 export async function rotateInvite(fd: FormData): Promise<void> {
   await quiet(async () => {
     const crewId = str(fd, "crewId");
     const { crew } = await requireCrewAction(crewId, { organiser: true });
     const db = await getDb();
-    await db.update(schema.crews).set({ inviteToken: newToken() }).where(eq(schema.crews.id, crew.id));
+    await db.update(schema.crews).set({ inviteToken: newToken(), calendarToken: newToken() }).where(eq(schema.crews.id, crew.id));
     revalidatePath(`/crew/${crew.slug}`, "layout");
   });
 }
