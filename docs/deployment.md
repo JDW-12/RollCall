@@ -9,7 +9,10 @@
 | `NEXT_PUBLIC_APP_URL` | Public origin. Used in every share link and card. Must be right. |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Sign-in code delivery. Empty logs codes to the console (dev only). |
 | `APP_SECRET` | Reserved for webhook verification. |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Not used by v1. Present so the config shape is settled. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Card payments through Stripe Connect. Empty means "mark as paid" only. |
+| `PLATFORM_FEE_BPS`, `PLATFORM_FEE_FIXED_PENCE` | Roll Call fee on card payments, default 2.5% + 20p. |
+| `CRON_SECRET` | Bearer token Vercel Cron sends to `/api/cron/reminders`. |
+| `FOUNDER_EMAILS` | Who can open `/founder`. |
 
 Migrations run automatically on first database connection. To run them explicitly: `npm run db:migrate`.
 
@@ -48,6 +51,16 @@ The image runs `next start` with the SQLite file on a volume. Good for a single 
 ```bash
 npm run check && npm run build && PLAYWRIGHT_CHROMIUM_PATH=... npm run test:e2e
 ```
+
+## Stripe Connect
+1. Stripe dashboard → Connect → enable Express accounts. Platform profile: marketplace, UK.
+2. Set `STRIPE_SECRET_KEY`. Test mode keys work end to end.
+3. Add a webhook endpoint at `https://<domain>/api/stripe/webhook` for `checkout.session.completed` and `account.updated`; set `STRIPE_WEBHOOK_SECRET`.
+4. An organiser opens Crew settings → "Set up card payments" and completes Stripe's hosted onboarding. When Stripe reports charges enabled, members see "Pay £x by card" wherever they owe.
+Payments are destination charges to the organiser's account with Roll Call's fee as the application fee. Roll Call never holds funds.
+
+## Reminders
+`vercel.json` schedules `/api/cron/reminders` daily at 09:00 UTC (Hobby plans allow one daily cron; Pro can run it hourly). The job emails members who haven't answered a session whose commit-by moment is within 24 hours, and the organiser a headcount, once per session. It needs `CRON_SECRET` and `RESEND_API_KEY`. Members without an email are skipped; the organiser's "Nudge the stragglers" button covers them through WhatsApp.
 
 ## Backups
 SQLite: copy the file (`sqlite3 data/rollcall.db ".backup backup.db"`) or use Turso's point-in-time restore.

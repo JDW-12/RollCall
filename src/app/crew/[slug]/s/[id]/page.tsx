@@ -16,6 +16,7 @@ import { toRows } from "@/components/session-card";
 import { RsvpButtons } from "./rsvp-buttons";
 import { Avatar } from "@/components/avatar";
 import { ShareButtons } from "@/components/share";
+import { PayByCard } from "@/components/pay";
 import { Ring } from "@/components/ring";
 import { Countdown } from "@/components/countdown";
 import { ActionForm, SubmitButton } from "@/components/action-form";
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: b?.session.title ?? "Session" };
 }
 
-export default async function SessionPage({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<{ pinned?: string; rated?: string }> }) {
+export default async function SessionPage({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<{ pinned?: string; rated?: string; paid?: string }> }) {
   const { slug, id } = await params;
   const flags = await searchParams;
   const gate = await optionalCrewPage(slug);
@@ -100,6 +101,29 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
         <div className="mb-4 anim-pop">
           <Notice tone="good">Votes in. Nice one.</Notice>
         </div>
+      ) : null}
+      {flags.paid ? (
+        <div className="mb-4 anim-pop">
+          <Notice tone="good">Payment received. It shows below as soon as Stripe confirms it.</Notice>
+        </div>
+      ) : null}
+      {isOrganiser && session.status === "open" && !started && unanswered.length > 0 ? (
+        <Panel className="p-4 mb-4 flex flex-col gap-2 border-card/40 bg-card-soft">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">
+              <strong>{unanswered.length} not answered:</strong> {unanswered.map((m) => m.name.split(" ")[0]).join(", ")}.
+            </span>
+          </div>
+          <ShareButtons
+            text={`${session.title}, ${fmtLong(session.startsAt)}${session.venueName ? ` at ${session.venueName}` : ""}. ${sum.in}/${session.capacity} in. Still need an answer from ${unanswered.map((m) => m.name.split(" ")[0]).join(", ")}. Tap in or out:`}
+            url={url}
+            label="Nudge the stragglers"
+            crewId={crew.id}
+            sessionId={session.id}
+            what="session"
+            compact
+          />
+        </Panel>
       ) : null}
 
       {/* Hero */}
@@ -331,6 +355,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
                         <span className="display text-lg font-bold tnum">{pounds(l.amountPence)}</span>
                         {settled ? (
                           <Pill tone="good">Paid</Pill>
+                        ) : l.userId === user.id && crew.stripeChargesEnabled ? (
+                          <PayByCard crewId={crew.id} sessionId={session.id} owedPence={owed} enabled compact />
                         ) : isOrganiser ? (
                           <ActionForm action={recordPayment} className="gap-0">
                             <input type="hidden" name="crewId" value={crew.id} />

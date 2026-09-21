@@ -21,7 +21,11 @@ The core loop, web-first as a PWA, zero install for members.
 - Ratings opt-out per crew and organiser hide
 - Reporting flow
 
-## v1.1: after the pilot (target months 4 to 6)
+## v1.1: shipped ahead of the pilot
+
+Reminders, Stripe Connect card payments, season awards, public previews of shared links, referral tracking and the founder dashboard are built. Remaining from the original v1.1 list: calendar export and a venue directory.
+
+## v1.1 original scope (target months 4 to 6)
 
 Reduce organiser effort and make money move cleanly.
 

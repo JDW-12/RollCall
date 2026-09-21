@@ -28,6 +28,23 @@ export async function sendLoginCode(email: string, code: string): Promise<{ deli
   return { delivered: true, dev: false };
 }
 
+/** Plain-text email through Resend. Logs instead when no key is set. Returns whether it was delivered. */
+export async function sendEmail({ to, subject, text }: { to: string; subject: string; text: string }): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    console.log(`\n[Roll Call] Email to ${to}: ${subject}\n${text}\n`);
+    return false;
+  }
+  const from = process.env.EMAIL_FROM ?? "Roll Call <hello@rollcall.club>";
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], subject, text }),
+  });
+  if (!res.ok) console.error("Resend error", res.status, await res.text());
+  return res.ok;
+}
+
 export function devEmailMode(): boolean {
   return !process.env.RESEND_API_KEY;
 }

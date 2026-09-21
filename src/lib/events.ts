@@ -2,7 +2,7 @@ import "server-only";
 import { getDb, schema } from "@/db/client";
 import { newId } from "./ids";
 
-export type EventKind = "share_click" | "preview_view" | "referral_landed" | "crew_referred" | "demo_signin";
+export type EventKind = "share_click" | "preview_view" | "referral_landed" | "crew_referred" | "demo_signin" | "reminder_sent";
 
 /** Fire-and-forget product event. Never throws into a page. */
 export async function track(kind: EventKind, data: { crewId?: string | null; userId?: string | null; sessionId?: string | null; payload?: Record<string, unknown> } = {}): Promise<void> {

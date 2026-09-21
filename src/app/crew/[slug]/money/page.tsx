@@ -5,14 +5,16 @@ import { CrewShell } from "@/components/shell";
 import { Avatar } from "@/components/avatar";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconArrowDown, IconCheck, IconChevron, IconCoins } from "@/components/icons";
-import { Button, Field, PageTitle, Panel, Pill, Stat, cls } from "@/components/ui";
+import { Button, Field, Notice, PageTitle, Panel, Pill, Stat, cls } from "@/components/ui";
+import { PayByCard } from "@/components/pay";
 import { deleteLedgerEntry, recordPayment } from "@/lib/actions/session";
 import { fmtDay, pounds } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Money" };
 
-export default async function MoneyPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function MoneyPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ paid?: string }> }) {
   const { slug } = await params;
+  const { paid } = await searchParams;
   const { crew, user, isOrganiser } = await requireCrewPage(slug);
   const [{ entries, balances }, members, sessions] = await Promise.all([getCrewLedger(crew.id), listMembers(crew.id), listSessions(crew.id)]);
   const rows = members
@@ -30,12 +32,22 @@ export default async function MoneyPage({ params }: { params: Promise<{ slug: st
         Shares are raised when a session is confirmed as played. Late drops and no-shows still owe. The organiser marks people paid.
       </PageTitle>
 
+      {paid ? (
+        <div className="mb-4 anim-pop">
+          <Notice tone="good">Payment received. It shows in the ledger as soon as Stripe confirms it, usually within a few seconds.</Notice>
+        </div>
+      ) : null}
       <Panel className="surface-raised p-4 grid grid-cols-3 gap-3 mb-4 anim-rise">
         <Stat label="Outstanding" value={pounds(totalOwed)} tone={totalOwed > 0 ? "bad" : "good"} sub={totalOwed > 0 ? "still to come in" : "all in"} />
         <Stat label="Collected" value={pounds(totalCollected)} sub={`of ${pounds(totalCharged)} charged`} />
         <Stat label="You" value={mine > 0 ? pounds(mine) : "Settled"} tone={mine > 0 ? "bad" : "good"} sub={mine > 0 ? "owed to the crew" : mine < 0 ? `${pounds(-mine)} in credit` : undefined} />
       </Panel>
 
+      {mine > 0 ? (
+        <div className="mb-4">
+          <PayByCard crewId={crew.id} owedPence={mine} enabled={crew.stripeChargesEnabled} />
+        </div>
+      ) : null}
       <Panel className="divide-y divide-line-2 mb-4 anim-rise-2">
         {rows.map(({ m, b }) => {
           const share = b.charged > 0 ? Math.min(1, b.paid / b.charged) : b.paid > 0 ? 1 : 0;

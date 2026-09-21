@@ -71,6 +71,9 @@ export const crews = sqliteTable(
       .references(() => users.id),
     /** The crew whose shared link brought this organiser in, if any. */
     referredByCrewId: text("referred_by_crew_id"),
+    /** Stripe Express account that receives card payments for this crew. Null until an organiser connects one. */
+    stripeAccountId: text("stripe_account_id"),
+    stripeChargesEnabled: integer("stripe_charges_enabled", { mode: "boolean" }).notNull().default(false),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
@@ -214,12 +217,15 @@ export const ledger = sqliteTable(
     /** Why the charge exists: share / late_drop / no_show / pot, or how it was paid: cash / transfer / waived / card. */
     reason: text("reason").notNull(),
     note: text("note").notNull().default(""),
+    /** Provider reference (e.g. Stripe checkout session id) so a webhook can never double-record. */
+    externalRef: text("external_ref"),
     createdBy: text("created_by").notNull(),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
     index("ledger_crew_user_idx").on(t.crewId, t.userId),
     index("ledger_session_idx").on(t.sessionId),
+    uniqueIndex("ledger_external_ref_idx").on(t.externalRef),
   ],
 );
 

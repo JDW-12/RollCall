@@ -6,6 +6,8 @@ import { SPORTS, sportOf } from "@/domain/sports";
 import { CrewBand, CrewShell } from "@/components/shell";
 import { Avatar } from "@/components/avatar";
 import { ShareButtons } from "@/components/share";
+import { StripeConnectPanel } from "@/components/stripe-connect";
+import { refreshStripe } from "@/lib/actions/stripe";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconPeople, IconPin, IconShare, SportIcon } from "@/components/icons";
 import { Button, Eyebrow, Field, Panel, Pill } from "@/components/ui";
@@ -14,9 +16,17 @@ import { fmtDay } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Crew" };
 
-export default async function SettingsPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function SettingsPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ stripe?: string }> }) {
   const { slug } = await params;
-  const { crew, user, isOrganiser } = await requireCrewPage(slug);
+  const { stripe: stripeFlag } = await searchParams;
+  const first = await requireCrewPage(slug);
+  const { user, isOrganiser } = first;
+  let crew = first.crew;
+  if (stripeFlag && isOrganiser) {
+    // Back from Stripe onboarding: pull the account state before rendering.
+    await refreshStripe(crew.id);
+    crew = (await requireCrewPage(slug)).crew;
+  }
   const members = await listMembers(crew.id);
   const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
@@ -123,6 +133,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
           ))}
         </div>
       </Panel>
+
+      {isOrganiser ? <StripeConnectPanel crew={crew} /> : null}
 
       {isOrganiser ? (
         <Panel className="p-4 mb-4">

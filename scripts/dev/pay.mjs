@@ -1,0 +1,15 @@
+import { chromium } from "@playwright/test";
+const out = "/tmp/claude-0/-home-user-Remoovals/9aaf5bb5-a8d7-505a-9eb5-464ae059be3c/scratchpad/shots";
+const base = "http://localhost:3200";
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, deviceScaleFactor: 2 });
+await ctx.addCookies([{ name: "rc_session", value: "demo-organiser-session-NSRTAOt2r3pUNqRPAZdzcouW", domain: "localhost", path: "/" }]);
+const p = await ctx.newPage();
+await p.goto(base + "/crew/tuesday-fc", { waitUntil: "networkidle" });
+const href = await p.locator('a[href*="/s/"]').first().getAttribute("href");
+await p.goto(base + href, { waitUntil: "networkidle" });
+await p.screenshot({ path: out + "/nudge.png", clip: { x: 0, y: 0, width: 420, height: 900 } });
+await p.goto(base + "/crew/tuesday-fc/settings", { waitUntil: "networkidle" });
+await p.screenshot({ path: out + "/settings.png", fullPage: true });
+await browser.close();
+console.log("ok");
