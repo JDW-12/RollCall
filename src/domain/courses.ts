@@ -111,38 +111,96 @@ export function mergeHits(library: CourseHit[], api: CourseHit[], limit = 8): Co
 }
 
 /** Shape returned by golfcourseapi.com; only the fields we read. Kept loose because it's third-party data. */
+export type GolfApiHole = { par?: number; handicap?: number; yardage?: number };
+export type GolfApiTee = { tee_name?: string; par_total?: number; number_of_holes?: number; holes?: GolfApiHole[] };
+
 export type GolfApiCourse = {
   id: number | string;
   club_name?: string;
   course_name?: string;
   location?: { address?: string; city?: string; state?: string; country?: string };
-  tees?: Record<string, { tee_name?: string; par_total?: number; number_of_holes?: number; holes?: { par?: number; handicap?: number; yardage?: number }[] }[] | undefined>;
+  /**
+   * Left deliberately loose. The provider nests tee sets differently between endpoints and between
+   * courses — sometimes an object keyed by gender holding arrays, sometimes an array, sometimes a
+   * single object — and assuming one shape threw, which discarded every other course in the batch.
+   */
+  tees?: unknown;
 };
 
-/** Maps one provider course into hits, one per tee set that has a usable card. */
+/**
+ * Gathers tee sets out of whatever `tees` happens to be: an array, an object of arrays, an object of
+ * objects, or one tee on its own. Anything carrying a list of holes counts as a tee set.
+ */
+export function teeSetsFrom(tees: unknown): GolfApiTee[] {
+  const out: GolfApiTee[] = [];
+  const seen = new Set<unknown>();
+  const visit = (node: unknown, depth: number) => {
+    if (!node || typeof node !== "object" || depth > 4 || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child, depth + 1);
+      return;
+    }
+    const rec = node as Record<string, unknown>;
+    if (Array.isArray(rec.holes)) {
+      out.push(rec as GolfApiTee);
+      return;
+    }
+    for (const child of Object.values(rec)) visit(child, depth + 1);
+  };
+  visit(tees, 0);
+  return out;
+}
+
+/**
+ * Maps one provider course into hits, one per tee set that has a usable card.
+ *
+ * Never throws. It runs inside a flatMap over the whole search response, so one course with an
+ * unexpected shape used to take every other result down with it and the search looked empty.
+ */
 export function hitsFromGolfApi(course: GolfApiCourse): CourseHit[] {
-  const name = (course.course_name || course.club_name || "").trim();
-  if (!name) return [];
-  const club = (course.club_name || "").trim();
-  const loc = course.location ?? {};
-  const address = [loc.address, loc.city].filter(Boolean).join(", ");
-  const out: CourseHit[] = [];
-  const seenTee = new Set<string>();
-  for (const group of Object.values(course.tees ?? {})) {
-    for (const tee of group ?? []) {
+  try {
+    const name = (course.course_name || course.club_name || "").trim();
+    if (!name) return [];
+    const club = (course.club_name || "").trim();
+    const loc = course.location ?? {};
+    const address = [loc.address, loc.city].filter(Boolean).join(", ");
+    const out: CourseHit[] = [];
+    const seenTee = new Set<string>();
+    for (const tee of teeSetsFrom(course.tees)) {
       const teeName = (tee.tee_name ?? "").trim();
       const key = teeName.toLowerCase();
       if (seenTee.has(key)) continue;
-      const raw = tee.holes ?? [];
+      const raw = Array.isArray(tee.holes) ? tee.holes : [];
       if (raw.length !== 9 && raw.length !== 18) continue;
-      try {
-        const holes = validateHoles(raw.map((h, i) => ({ number: i + 1, par: h.par, strokeIndex: h.handicap, yards: h.yardage })));
-        seenTee.add(key);
-        out.push({ name, club, address, tee: teeName, holes, source: "api", ref: `golfcourseapi:${course.id}:${teeName}`, uses: 0 });
-      } catch {
-        // A tee set without stroke indexes or with a broken card is skipped rather than guessed.
-      }
+      const holes = cardFrom(raw);
+      if (!holes) continue;
+      seenTee.add(key);
+      out.push({ name, club, address, tee: teeName, holes, source: "api", ref: `golfcourseapi:${course.id}:${teeName}`, uses: 0 });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * A card from provider holes. Pars are the part that must be right; plenty of courses come back with
+ * no stroke indexes at all, and a card with sensible default indexes is far more use to a golfer than
+ * no course in the search results.
+ */
+function cardFrom(raw: GolfApiHole[]): Hole[] | null {
+  const pars = raw.map((h) => Number(h?.par));
+  if (!pars.every((p) => Number.isInteger(p) && p >= 3 && p <= 6)) return null;
+  const withProviderSi = raw.map((h, i) => ({ number: i + 1, par: pars[i], strokeIndex: Number(h?.handicap), yards: Number(h?.yardage) }));
+  try {
+    return validateHoles(withProviderSi);
+  } catch {
+    const si = defaultStrokeIndexes(pars);
+    try {
+      return validateHoles(raw.map((h, i) => ({ number: i + 1, par: pars[i], strokeIndex: si[i], yards: Number(h?.yardage) })));
+    } catch {
+      return null;
     }
   }
-  return out;
 }

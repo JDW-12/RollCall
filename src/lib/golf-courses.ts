@@ -2,7 +2,7 @@ import "server-only";
 import { desc, eq, like, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { newId } from "@/lib/ids";
-import { courseKey, hitsFromGolfApi, mergeHits, validateHoles, type CourseCard, type CourseHit, type GolfApiCourse } from "@/domain/courses";
+import { courseKey, hitsFromGolfApi, mergeHits, teeSetsFrom, validateHoles, type CourseCard, type CourseHit, type GolfApiCourse } from "@/domain/courses";
 import type { Hole } from "@/domain/stableford";
 
 /**
@@ -50,9 +50,20 @@ async function searchProvider(q: string): Promise<CourseHit[]> {
       return [];
     }
     const body = (await res.json()) as { courses?: GolfApiCourse[] };
+    const all = Array.isArray(body.courses) ? body.courses : [];
     // UK only: the provider is worldwide and "Richmond" matches courses on three continents.
-    const uk = (body.courses ?? []).filter((c) => /united kingdom|^uk$|england|scotland|wales|northern ireland|^gb$/i.test(c.location?.country ?? ""));
-    return uk.flatMap(hitsFromGolfApi);
+    const uk = all.filter((c) => /united kingdom|^uk$|england|scotland|wales|northern ireland|^gb$/i.test(c.location?.country ?? ""));
+    // One course with an odd shape must never cost us the rest of the results.
+    const hits = uk.flatMap((c) => {
+      try {
+        return hitsFromGolfApi(c);
+      } catch (e) {
+        console.error("golfcourseapi course skipped", c?.id, e);
+        return [];
+      }
+    });
+    if (!hits.length) describeMiss(q, all, uk);
+    return hits;
   } catch (e) {
     console.error("golfcourseapi lookup failed", e);
     return [];
@@ -145,4 +156,25 @@ export async function correctCourse(id: string, holes: Hole[], tee?: string): Pr
 export async function countUse(id: string): Promise<void> {
   const db = await getDb();
   await db.update(schema.courses).set({ uses: sql`${schema.courses.uses} + 1` }).where(eq(schema.courses.id, id));
+}
+
+/**
+ * When the provider answers but nothing usable comes out, record the shape of what arrived. The
+ * provider does not publish its response schema, so this is the only way to see why a real course
+ * was dropped: whether it failed the country filter, or arrived with its tees nested unexpectedly.
+ * Names and ids only — no key, no personal data.
+ */
+function describeMiss(q: string, all: GolfApiCourse[], uk: GolfApiCourse[]): void {
+  const first = uk[0] ?? all[0];
+  const tees = first?.tees;
+  console.error(
+    "golfcourseapi no usable hits",
+    JSON.stringify({
+      q,
+      returned: all.length,
+      inUk: uk.length,
+      countries: [...new Set(all.map((c) => c.location?.country ?? "?"))].slice(0, 5),
+      sample: first ? { id: first.id, club: first.club_name, course: first.course_name, teesType: Array.isArray(tees) ? "array" : typeof tees, teesKeys: tees && typeof tees === "object" && !Array.isArray(tees) ? Object.keys(tees).slice(0, 6) : undefined, teeSets: teeSetsFrom(tees).length } : null,
+    }),
+  );
 }
