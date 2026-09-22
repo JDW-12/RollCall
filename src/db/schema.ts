@@ -185,10 +185,18 @@ export const competitions = sqliteTable(
     syncedAt: ts("synced_at"),
     /** Why the last pull failed, shown to the organiser. Empty when all is well. */
     syncError: text("sync_error").notNull().default(""),
+    /**
+     * Shared identity for a division: the feed address, else the league link, else a slug of the
+     * name. Every crew playing the same division carries the same key, and the table is read from
+     * whichever of them sourced it most recently. So only the first crew in a division ever has to
+     * find a table; everyone who joins afterwards gets it for nothing, the same way the golf course
+     * library works.
+     */
+    divisionKey: text("division_key").notNull().default(""),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
   },
-  (t) => [index("competitions_crew_idx").on(t.crewId), index("competitions_sync_idx").on(t.feedKind, t.syncedAt)],
+  (t) => [index("competitions_crew_idx").on(t.crewId), index("competitions_sync_idx").on(t.feedKind, t.syncedAt), index("competitions_division_idx").on(t.divisionKey)],
 );
 
 /** Per-player numbers from one fixture: goals, assists and the manager's mark out of ten. */

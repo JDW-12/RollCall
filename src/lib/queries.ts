@@ -1,10 +1,12 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { ratingsFor } from "@/domain/ratings";
 import { computeTable, type TableRow } from "@/domain/table";
 import { balances, type Balance } from "@/domain/money";
 import type { Appearance, MatchStatRow } from "@/domain/match-stats";
+import { teamsOf, type DivisionCandidate } from "@/domain/divisions";
+import type { StandingRow } from "@/domain/league";
 
 export type Member = schema.User & { role: schema.CrewMember["role"]; joinedAt: Date };
 
@@ -200,4 +202,48 @@ export async function crewMatchStats(crewId: string): Promise<{ stats: MatchStat
     stats: stats.map((s) => ({ sessionId: s.sessionId, userId: s.userId, goals: s.goals, assists: s.assists, rating: s.rating })),
     appearances: att.filter((a) => a.attended).map((a) => ({ sessionId: a.sessionId, userId: a.userId })),
   };
+}
+
+/**
+ * Tables other crews have already sourced, as division fingerprints. Used to spot which division a
+ * crew is playing in from the teams it has played, so a second crew in a league never has to find a
+ * table at all. The crew's own competitions are left out: matching yourself proves nothing.
+ */
+export async function divisionCandidates(excludeCrewId: string): Promise<DivisionCandidate[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ id: schema.competitions.id, divisionKey: schema.competitions.divisionKey, crewId: schema.crews.id, crewName: schema.crews.name, name: schema.competitions.name, standings: schema.competitions.standings, updatedAt: schema.competitions.standingsUpdatedAt })
+    .from(schema.competitions)
+    .innerJoin(schema.crews, eq(schema.crews.id, schema.competitions.crewId))
+    .where(and(isNotNull(schema.competitions.standings), ne(schema.competitions.crewId, excludeCrewId)))
+    .limit(400);
+  return rows.map((r) => ({
+    competitionId: r.id,
+    divisionKey: r.divisionKey,
+    crewId: r.crewId,
+    crewName: r.crewName,
+    name: r.name,
+    teams: teamsOf(JSON.parse(r.standings ?? "[]") as StandingRow[]),
+    updatedAt: r.updatedAt?.getTime() ?? 0,
+  }));
+}
+
+/**
+ * The freshest table held by any crew sharing this division, so every crew after the first reads a
+ * table nobody in their crew had to find.
+ */
+export async function sharedStandings(divisionKey: string, excludeCompetitionId: string): Promise<{ rows: StandingRow[]; updatedAt: Date | null; source: string; crewName: string } | null> {
+  if (!divisionKey) return null;
+  const db = await getDb();
+  const hit = (
+    await db
+      .select({ standings: schema.competitions.standings, updatedAt: schema.competitions.standingsUpdatedAt, source: schema.competitions.standingsSource, crewName: schema.crews.name })
+      .from(schema.competitions)
+      .innerJoin(schema.crews, eq(schema.crews.id, schema.competitions.crewId))
+      .where(and(eq(schema.competitions.divisionKey, divisionKey), ne(schema.competitions.id, excludeCompetitionId), isNotNull(schema.competitions.standings)))
+      .orderBy(desc(schema.competitions.standingsUpdatedAt))
+      .limit(1)
+  )[0];
+  if (!hit) return null;
+  return { rows: JSON.parse(hit.standings ?? "[]") as StandingRow[], updatedAt: hit.updatedAt, source: hit.source, crewName: hit.crewName };
 }

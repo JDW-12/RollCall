@@ -3,7 +3,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import { nowMs } from "@/lib/clock";
 import { requireCrewPage } from "@/lib/access";
-import { crewMatchStats, listCompetitions, listFixtures, listMembers } from "@/lib/queries";
+import { crewMatchStats, divisionCandidates, listCompetitions, listFixtures, listMembers, sharedStandings } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { PROVIDER_LABEL, fixtureLine, resultOf, sameTeam, teamRecord, type Provider, type StandingRow } from "@/domain/league";
 import { seasonLeaders, seasonStats } from "@/domain/match-stats";
@@ -13,9 +13,11 @@ import { ResultPills } from "@/components/sparkline";
 import { IconBolt, IconFlag, IconMedal, IconPin } from "@/components/icons";
 import { EmptyState, Eyebrow, LinkButton, PageTitle, Panel, Pill, Stat, cls } from "@/components/ui";
 import { StandingsError, StandingsStatus } from "@/components/standings-status";
+import { DivisionMatchPanel, NoTableYet, StaleTableNudge } from "@/components/division-match";
+import { knownTeams, matchDivision, tableIsStale, type DivisionMatch } from "@/domain/divisions";
 import { REFRESH_MS, syncCompetition } from "@/lib/league-feed";
 import { allow } from "@/lib/ratelimit";
-import { fmtDay, relativeDay } from "@/lib/format";
+import { fmtAgo, fmtDay, relativeDay } from "@/lib/format";
 
 export const metadata: Metadata = { title: "League" };
 
@@ -32,7 +34,20 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
   const played = mine.filter((f) => f.goalsFor !== null && f.goalsAgainst !== null);
   const upcoming = mine.filter((f) => f.goalsFor === null && f.startsAt.getTime() > now - 6 * 60 * 60_000).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   const record = teamRecord(mine.map((f) => ({ goalsFor: f.goalsFor, goalsAgainst: f.goalsAgainst, startsAt: f.startsAt.getTime(), competitionId: f.competitionId })));
-  const standings: StandingRow[] = selected?.standings ? (JSON.parse(selected.standings) as StandingRow[]) : [];
+  // The crew's own table if they sourced one; otherwise whatever another crew in the same division
+  // has, which is the point of sharing them. Only when neither exists do we ask anyone to do work.
+  const own: StandingRow[] = selected?.standings ? (JSON.parse(selected.standings) as StandingRow[]) : [];
+  const shared = !own.length && selected?.divisionKey ? await sharedStandings(selected.divisionKey, selected.id) : null;
+  const standings: StandingRow[] = own.length ? own : (shared?.rows ?? []);
+
+  // No table anywhere: see whether the teams they have played give their division away.
+  let suggestion: DivisionMatch | null = null;
+  if (!standings.length && selected && isOrganiser) {
+    // Every opponent the crew has faced, not just the ones filed under this competition: most
+    // managers pin a fixture without picking a competition, and those games still name the division.
+    const opponents = fixtures.map((f) => f.opponent).filter(Boolean);
+    suggestion = matchDivision(knownTeams(selected.teamName || crew.name, opponents), await divisionCandidates(crew.id));
+  }
 
   // Opportunistic refresh: whoever opens a stale table triggers the next pull once the response has
   // gone out, so the hub is live for crews that actually use it without leaning on the cron alone.
@@ -158,9 +173,16 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
             <section className="flex flex-col gap-2 anim-rise-2">
               <div className="flex items-end justify-between gap-3">
                 <Eyebrow>The table</Eyebrow>
-                {selected ? <StandingsStatus competition={selected} crewId={crew.id} isOrganiser={isOrganiser} /> : null}
+                {selected && own.length ? (
+                  <StandingsStatus competition={selected} crewId={crew.id} isOrganiser={isOrganiser} />
+                ) : shared ? (
+                  <span className="text-xs text-ink-3">Shared by {shared.crewName} · {shared.updatedAt ? fmtAgo(shared.updatedAt) : "earlier"}</span>
+                ) : null}
               </div>
-              {selected && isOrganiser ? <StandingsError competition={selected} /> : null}
+              {selected && isOrganiser && own.length ? <StandingsError competition={selected} /> : null}
+              {selected && isOrganiser && own.length && selected.standingsSource === "manual" && tableIsStale(selected.standingsUpdatedAt) ? (
+                <StaleTableNudge crewSlug={crew.slug} leagueUrl={selected.externalUrl} />
+              ) : null}
               <Panel className="overflow-x-auto">
                 <table className="w-full text-sm font-mono tnum">
                   <thead>
@@ -195,17 +217,10 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
                 </table>
               </Panel>
             </section>
+          ) : suggestion && selected ? (
+            <DivisionMatchPanel match={suggestion} crewId={crew.id} competitionId={selected.id} />
           ) : isOrganiser && selected ? (
-            <Panel className="p-4 anim-rise-2">
-              <Eyebrow className="mb-2">The table</Eyebrow>
-              <p className="text-sm text-ink-2">
-                Paste the official snippet from your league admin and the table keeps itself up to date here.{" "}
-                <Link href={`/crew/${crew.slug}/settings#league`} className="underline font-semibold text-pitch">
-                  Set up the live table
-                </Link>
-                , or copy the rows off your league page if you haven&apos;t got admin access.
-              </p>
-            </Panel>
+            <NoTableYet crewSlug={crew.slug} leagueUrl={selected.externalUrl} leagueName={selected.name} />
           ) : null}
 
           {played.length ? (

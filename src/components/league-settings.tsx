@@ -24,8 +24,8 @@ export function LeagueSettings({ crew, competitions, sport }: { crew: Crew; comp
         <div>
           <Eyebrow>League and cups</Eyebrow>
           <p className="text-sm text-ink-2 mt-1">
-            Link where you play and every fixture, result and player stat gathers on the League tab. Paste your league&apos;s official snippet and the table stays live on its own; paste the rows by hand
-            if you haven&apos;t got admin access.
+            Link where you play and every fixture, result and player stat gathers on the League tab. For the table: open your league page, select the whole thing and paste it below — we&apos;ll find
+            the table and ignore the rest. If another crew already plays in your division you won&apos;t have to do even that.
           </p>
         </div>
         <IconFlag size={20} className="text-pitch shrink-0" />
@@ -108,8 +108,8 @@ function CompetitionFields({ crewId, competition }: { crewId: string; competitio
         <input name="teamName" defaultValue={competition?.teamName ?? ""} maxLength={60} placeholder="Tuesday FC" className="text-sm" autoComplete="off" />
       </Field>
       <Field
-        label="Live table (optional)"
-        hint="In FA Full-Time admin go to Media → Code Snippets and generate a Table snippet; on LeagueRepublic it's API → Code Snippets. Paste the whole thing and the table updates itself."
+        label="Live feed (optional, needs league admin)"
+        hint="Only if you or your secretary can reach the league admin: FA Full-Time → Media → Code Snippets → Table; LeagueRepublic → API → Code Snippets. Paste it and the table refreshes itself forever. Skip it and pasting works fine."
       >
         <textarea name="feed" rows={2} defaultValue={competition?.feedUrl ?? ""} className="font-mono text-xs" placeholder={'<div id="lrep…"></div><script src="https://fulltime.thefa.com/…"></script>'} />
       </Field>

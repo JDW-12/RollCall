@@ -64,6 +64,13 @@
       "when": 1790068493457,
       "tag": "0008_league_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790069904917,
+      "tag": "0009_shared_divisions",
+      "breakpoints": true
     }
   ]
 }

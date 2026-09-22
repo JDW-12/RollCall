@@ -8,6 +8,7 @@ import { newId } from "@/lib/ids";
 import { getSession, listMembers } from "@/lib/queries";
 import { LeagueError, fullTimeEmbedUrl, parseStandings, providerFromUrl, safeExternalUrl } from "@/domain/league";
 import { feedFromSnippet } from "@/domain/league-feed";
+import { divisionKeyFrom } from "@/domain/divisions";
 import { syncCompetition } from "@/lib/league-feed";
 import { allow } from "@/lib/ratelimit";
 
@@ -33,6 +34,8 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
     if (snippet.trim() && !feed) uiError("That doesn't look like a Full-Time or LeagueRepublic snippet. Copy the whole thing from Media → Code Snippets in your league admin.");
     const embedUrl = feed?.kind === "fulltime_snippet" ? feed.url : fullTimeEmbedUrl(snippet || externalUrl);
     const teamName = str(fd, "teamName").slice(0, 60);
+    // The key two crews in the same division end up sharing, so the second never sources a table.
+    const divisionKey = divisionKeyFrom(externalUrl, feed?.url ?? "");
     const db = await getDb();
     const now = new Date();
     const id = str(fd, "competitionId");
@@ -50,6 +53,8 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
           teamName,
           feedUrl: feed?.url ?? "",
           feedKind: feed?.kind ?? "none",
+          // A key already agreed with other crews is kept; a link only ever adds one.
+          divisionKey: divisionKey || existing.divisionKey,
           // Clearing the feed leaves the last table in place, but it stops calling itself live.
           standingsSource: feed ? existing.standingsSource : "manual",
           syncError: "",
@@ -71,6 +76,7 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
         standingsSource: "manual",
         feedUrl: feed?.url ?? "",
         feedKind: feed?.kind ?? "none",
+        divisionKey,
         syncedAt: null,
         syncError: "",
         createdAt: now,
@@ -201,5 +207,36 @@ export async function refreshStandings(_prev: ActionState, fd: FormData): Promis
     revalidatePath(`/crew/${crew.slug}`, "layout");
     if (!outcome.ok) uiError(outcome.error);
     return { ok: true, message: `Table updated: ${outcome.rows} teams.` };
+  });
+}
+
+/**
+ * "That's our division" — links this crew's competition to a table another crew has already sourced.
+ *
+ * This is the whole point of the shared division: after the first crew in a league does the work,
+ * every crew that follows taps once and is done. The two competitions are joined by a shared key
+ * rather than by copying rows, so whenever either crew refreshes, both see it.
+ */
+export async function adoptDivision(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  return act(async () => {
+    const { crew } = await requireCrewAction(str(fd, "crewId"), { organiser: true });
+    const db = await getDb();
+    const mine = (await db.select().from(schema.competitions).where(and(eq(schema.competitions.id, str(fd, "competitionId")), eq(schema.competitions.crewId, crew.id))).limit(1))[0];
+    if (!mine) uiError("That competition isn't in this crew any more.");
+    const theirs = (await db.select().from(schema.competitions).where(eq(schema.competitions.id, str(fd, "matchId"))).limit(1))[0];
+    if (!theirs || !theirs.standings) uiError("That table has gone. Paste your own and you'll be the one sharing it.");
+    if (theirs.crewId === crew.id) uiError("That's already your own table.");
+
+    // A crew that pasted without linking a league page has no key yet, so one is minted from their
+    // competition. It only ever marks which division a table belongs to; their table is untouched.
+    const key = theirs.divisionKey || `division:${theirs.id}`;
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      if (!theirs.divisionKey) await tx.update(schema.competitions).set({ divisionKey: key, updatedAt: now }).where(eq(schema.competitions.id, theirs.id));
+      await tx.update(schema.competitions).set({ divisionKey: key, updatedAt: now }).where(eq(schema.competitions.id, mine.id));
+    }, { behavior: "immediate" });
+
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    return { ok: true, message: "Sorted. That table now shows on your League tab and stays up to date on its own." };
   });
 }
