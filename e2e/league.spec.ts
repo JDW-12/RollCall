@@ -51,6 +51,15 @@ test("league: link → table → fixture → result → hub", async ({ browser }
   await standings.locator('button:has-text("Paste the table")').click();
   await expect(row).toContainText("Table in");
 
+  // A live-table snippet is only ever read from the two league platforms: anything else is refused
+  // outright rather than fetched, and the competition is left exactly as it was.
+  const edit = row.locator("form[data-competition-form]").first();
+  await edit.locator('textarea[name="feed"]').fill('<script src="https://evil.example.com/table.js"></script>');
+  await edit.locator('button:has-text("Save")').click();
+  await expect(edit.getByRole("alert")).toContainText(/Full-Time or LeagueRepublic/);
+  await edit.locator('textarea[name="feed"]').fill("");
+  await expect(row).toContainText("Table in");
+
   // Pin a fixture: competition, opponent, home.
   await org.goto(`/crew/${slug}/sessions/new`);
   await org.fill('input[name="title"]', "Sunday league");
@@ -86,6 +95,9 @@ test("league: link → table → fixture → result → hub", async ({ browser }
   const record = org.locator("section,div").filter({ hasText: "Played" }).first();
   await expect(record).toBeVisible();
   await expect(org.getByLabel("Form, newest first: W")).toBeVisible();
+
+  // The table says where it came from, and a pasted one is not dressed up as live.
+  await expect(org.getByText(/^Pasted ·/)).toBeVisible();
 
   const table = org.locator("table").first();
   await expect(table.locator("tbody tr")).toHaveCount(3);

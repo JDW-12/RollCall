@@ -3,13 +3,21 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, schema } from "@/db/client";
-import { requireCrewAction } from "@/lib/access";
+import { requireCrewAction, requireUserAction } from "@/lib/access";
 import { newId } from "@/lib/ids";
 import { getSession, listMembers } from "@/lib/queries";
 import { LeagueError, fullTimeEmbedUrl, parseStandings, providerFromUrl, safeExternalUrl } from "@/domain/league";
+import { feedFromSnippet } from "@/domain/league-feed";
+import { syncCompetition } from "@/lib/league-feed";
+import { allow } from "@/lib/ratelimit";
+
 import { act, addFeed, str, uiError, type ActionState } from "./shared";
 
-/** Adds or edits a league or cup. The link decides the provider badge; nothing is fetched. */
+/**
+ * Adds or edits a league or cup. The link decides the provider badge. If the manager also pasted the
+ * official feed snippet from their league admin, it is read for a feed address and pulled straight
+ * away, so a snippet that doesn't work says so while they are still looking at the form.
+ */
 export async function saveCompetition(_prev: ActionState, fd: FormData): Promise<ActionState> {
   return act(async () => {
     const { crew } = await requireCrewAction(str(fd, "crewId"), { organiser: true });
@@ -20,7 +28,10 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
     const externalUrl = safeExternalUrl(str(fd, "externalUrl"));
     const rawUrl = str(fd, "externalUrl");
     if (rawUrl && !externalUrl) uiError("That link doesn't look right. Paste the web address of your league page.");
-    const embedUrl = fullTimeEmbedUrl(str(fd, "embed") || externalUrl);
+    const snippet = str(fd, "feed") || str(fd, "embed");
+    const feed = feedFromSnippet(snippet);
+    if (snippet.trim() && !feed) uiError("That doesn't look like a Full-Time or LeagueRepublic snippet. Copy the whole thing from Media → Code Snippets in your league admin.");
+    const embedUrl = feed?.kind === "fulltime_snippet" ? feed.url : fullTimeEmbedUrl(snippet || externalUrl);
     const teamName = str(fd, "teamName").slice(0, 60);
     const db = await getDb();
     const now = new Date();
@@ -30,7 +41,20 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
       if (!existing) uiError("That competition isn't in this crew any more.");
       await db
         .update(schema.competitions)
-        .set({ name, kind, provider: providerFromUrl(externalUrl), externalUrl, embedUrl, teamName, updatedAt: now })
+        .set({
+          name,
+          kind,
+          provider: providerFromUrl(externalUrl),
+          externalUrl,
+          embedUrl,
+          teamName,
+          feedUrl: feed?.url ?? "",
+          feedKind: feed?.kind ?? "none",
+          // Clearing the feed leaves the last table in place, but it stops calling itself live.
+          standingsSource: feed ? existing.standingsSource : "manual",
+          syncError: "",
+          updatedAt: now,
+        })
         .where(eq(schema.competitions.id, existing.id));
     } else {
       await db.insert(schema.competitions).values({
@@ -44,11 +68,29 @@ export async function saveCompetition(_prev: ActionState, fd: FormData): Promise
         teamName: teamName || crew.name,
         standings: null,
         standingsUpdatedAt: null,
+        standingsSource: "manual",
+        feedUrl: feed?.url ?? "",
+        feedKind: feed?.kind ?? "none",
+        syncedAt: null,
+        syncError: "",
         createdAt: now,
         updatedAt: now,
       });
     }
     revalidatePath(`/crew/${crew.slug}`, "layout");
+
+    if (feed) {
+      // Pull it now: a snippet that doesn't work should say so while the manager is still on the form.
+      const saved = (await db.select().from(schema.competitions).where(and(eq(schema.competitions.crewId, crew.id), eq(schema.competitions.feedUrl, feed.url))).limit(1))[0];
+      if (saved) {
+        const outcome = await syncCompetition(saved, db);
+        revalidatePath(`/crew/${crew.slug}`, "layout");
+        // The competition is saved either way; a feed that didn't answer is shown as an error so the
+        // manager sees it now rather than wondering later why the table never appeared.
+        if (!outcome.ok) uiError(`${name} is saved, but the feed didn't answer. ${outcome.error} Paste the table below instead, or generate a fresh snippet.`);
+        return { ok: true, message: `${name} is live: ${outcome.rows} teams straight from the league.` };
+      }
+    }
     return { ok: true, message: id ? "Saved." : `${name} added. Pin a fixture and it'll show up here.` };
   });
 }
@@ -73,7 +115,7 @@ export async function saveStandings(_prev: ActionState, fd: FormData): Promise<A
     const comp = (await db.select().from(schema.competitions).where(and(eq(schema.competitions.id, id), eq(schema.competitions.crewId, crew.id))).limit(1))[0];
     if (!comp) uiError("That competition isn't in this crew any more.");
     if (str(fd, "clear") === "1") {
-      await db.update(schema.competitions).set({ standings: null, standingsUpdatedAt: null, updatedAt: new Date() }).where(eq(schema.competitions.id, comp.id));
+      await db.update(schema.competitions).set({ standings: null, standingsSource: "manual", standingsUpdatedAt: null, updatedAt: new Date() }).where(eq(schema.competitions.id, comp.id));
       revalidatePath(`/crew/${crew.slug}`, "layout");
       return { ok: true, message: "Table cleared." };
     }
@@ -85,7 +127,7 @@ export async function saveStandings(_prev: ActionState, fd: FormData): Promise<A
       throw e;
     }
     const now = new Date();
-    await db.update(schema.competitions).set({ standings: JSON.stringify(rows), standingsUpdatedAt: now, updatedAt: now }).where(eq(schema.competitions.id, comp.id));
+    await db.update(schema.competitions).set({ standings: JSON.stringify(rows), standingsSource: "manual", standingsUpdatedAt: now, updatedAt: now }).where(eq(schema.competitions.id, comp.id));
     revalidatePath(`/crew/${crew.slug}`, "layout");
     return { ok: true, message: `Table updated: ${rows.length} teams.` };
   });
@@ -139,5 +181,25 @@ export async function saveMatchStats(_prev: ActionState, fd: FormData): Promise<
     }
     revalidatePath(`/crew/${crew.slug}`, "layout");
     return { ok: true, message: goalsFor === null ? "Saved." : `${goalsFor}–${goalsAgainst} it is.` };
+  });
+}
+
+/**
+ * "Refresh now", for a manager who has just seen the league update its table and doesn't want to
+ * wait for the nightly pull. Rate limited per person, because it reaches out to someone else's site.
+ */
+export async function refreshStandings(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  return act(async () => {
+    const { crew } = await requireCrewAction(str(fd, "crewId"), { organiser: true });
+    const user = await requireUserAction();
+    const db = await getDb();
+    const comp = (await db.select().from(schema.competitions).where(and(eq(schema.competitions.id, str(fd, "competitionId")), eq(schema.competitions.crewId, crew.id))).limit(1))[0];
+    if (!comp) uiError("That competition isn't in this crew any more.");
+    if (!comp.feedUrl || comp.feedKind === "none") uiError("There's no live feed linked yet. Paste the snippet from your league admin first.");
+    if (!(await allow("standings_sync", user.id, 10, 60 * 60_000, db))) uiError("That's a lot of refreshing. Try again in a little while.");
+    const outcome = await syncCompetition(comp, db);
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    if (!outcome.ok) uiError(outcome.error);
+    return { ok: true, message: `Table updated: ${outcome.rows} teams.` };
   });
 }

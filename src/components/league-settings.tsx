@@ -6,12 +6,16 @@ import { IconFlag } from "@/components/icons";
 import { Eyebrow, Field, Panel, Pill } from "@/components/ui";
 import { deleteCompetition, saveCompetition, saveStandings } from "@/lib/actions/league";
 import { Button } from "@/components/ui";
-import { fmtDay } from "@/lib/format";
+import { fmtAgo, fmtDay } from "@/lib/format";
 
 /**
- * Leagues and cups, set up by an organiser. Neither the FA nor Powerleague publish a feed anyone
- * can read, so this is a link out plus a table the manager pastes: reliable, and it renders in the
- * crew's own design rather than someone else's iframe.
+ * Leagues and cups, set up by an organiser.
+ *
+ * There is no open API for FA Full-Time or Powerleague, and the FA has closed its public snippet
+ * pages specifically to stop products scraping league data. The way in that it does support is the
+ * snippet a league or team admin generates for their own club: paste it here and Roll Call pulls the
+ * table on a schedule, rendering it in the crew's own design. Without admin access the manager can
+ * still paste the rows by hand, so every crew gets a table either way.
  */
 export function LeagueSettings({ crew, competitions, sport }: { crew: Crew; competitions: Competition[]; sport: SportDef }) {
   return (
@@ -20,8 +24,8 @@ export function LeagueSettings({ crew, competitions, sport }: { crew: Crew; comp
         <div>
           <Eyebrow>League and cups</Eyebrow>
           <p className="text-sm text-ink-2 mt-1">
-            Link where you play and every fixture, result and player stat gathers on the League tab. The FA doesn&apos;t offer a feed for Full-Time, so the table is pasted in and the link opens the real
-            thing.
+            Link where you play and every fixture, result and player stat gathers on the League tab. Paste your league&apos;s official snippet and the table stays live on its own; paste the rows by hand
+            if you haven&apos;t got admin access.
           </p>
         </div>
         <IconFlag size={20} className="text-pitch shrink-0" />
@@ -36,7 +40,9 @@ export function LeagueSettings({ crew, competitions, sport }: { crew: Crew; comp
                   {comp.name}
                   <span className="text-ink-3 font-normal"> · {comp.kind}</span>
                 </span>
-                <Pill tone={comp.standings ? "good" : "neutral"}>{comp.standings ? "Table in" : PROVIDER_LABEL[comp.provider as Provider] ?? "Linked"}</Pill>
+                <Pill tone={comp.syncError ? "warn" : comp.standingsSource === "feed" ? "good" : comp.standings ? "good" : "neutral"}>
+                  {comp.syncError ? "Feed stalled" : comp.standingsSource === "feed" ? "Live" : comp.standings ? "Table in" : PROVIDER_LABEL[comp.provider as Provider] ?? "Linked"}
+                </Pill>
               </summary>
               <div className="px-3 pb-3 flex flex-col gap-4">
                 <CompetitionFields crewId={crew.id} competition={comp} />
@@ -101,6 +107,14 @@ function CompetitionFields({ crewId, competition }: { crewId: string; competitio
       <Field label="Your team, as the league spells it" hint="So your row is highlighted in the table.">
         <input name="teamName" defaultValue={competition?.teamName ?? ""} maxLength={60} placeholder="Tuesday FC" className="text-sm" autoComplete="off" />
       </Field>
+      <Field
+        label="Live table (optional)"
+        hint="In FA Full-Time admin go to Media → Code Snippets and generate a Table snippet; on LeagueRepublic it's API → Code Snippets. Paste the whole thing and the table updates itself."
+      >
+        <textarea name="feed" rows={2} defaultValue={competition?.feedUrl ?? ""} className="font-mono text-xs" placeholder={'<div id="lrep…"></div><script src="https://fulltime.thefa.com/…"></script>'} />
+      </Field>
+      {competition?.syncError ? <p className="text-xs text-card-ink">Last pull failed: {competition.syncError}</p> : null}
+      {competition?.syncedAt ? <p className="text-xs text-ink-3">Feed last answered {fmtAgo(competition.syncedAt)}.</p> : null}
       <SubmitButton variant="secondary" className="self-start" pendingText="Saving…">
         {competition ? "Save" : "Add competition"}
       </SubmitButton>
@@ -116,7 +130,13 @@ function StandingsForm({ crewId, competition, crewName }: { crewId: string; comp
       <input type="hidden" name="competitionId" value={competition.id} />
       <Field
         label="The league table"
-        hint={rows.length ? `${rows.length} teams, pasted ${competition.standingsUpdatedAt ? fmtDay(competition.standingsUpdatedAt) : "earlier"}. Paste again to update it.` : "Select the table on the league site, copy, paste here. Column order doesn't matter."}
+        hint={
+          competition.standingsSource === "feed"
+            ? "The live feed is filling this table. Pasting here replaces it until the next pull."
+            : rows.length
+              ? `${rows.length} teams, pasted ${competition.standingsUpdatedAt ? fmtDay(competition.standingsUpdatedAt) : "earlier"}. Paste again to update it.`
+              : "No admin access? Select the table on the league site, copy, paste here. Column order doesn't matter."
+        }
       >
         <textarea
           name="table"

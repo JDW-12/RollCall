@@ -113,3 +113,16 @@ export function initials(name: string): string {
 export function plural(n: number, one: string, many = one + "s"): string {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/** "just now" / "12 minutes ago" / "3 hours ago" / "5 days ago", for freshness lines. */
+export function fmtAgo(d: Date, now = new Date()): string {
+  const secs = Math.round((now.getTime() - d.getTime()) / 1000);
+  if (secs < 90) return "just now";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${plural(mins, "minute")} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${plural(hours, "hour")} ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${plural(days, "day")} ago`;
+  return fmtDay(d);
+}

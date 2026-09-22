@@ -11,7 +11,7 @@
 | `APP_SECRET` | Reserved for webhook verification. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Card payments through Stripe Connect. Empty means "mark as paid" only. |
 | `PLATFORM_FEE_BPS`, `PLATFORM_FEE_FIXED_PENCE` | Roll Call fee on card payments, default 2.5% + 20p. |
-| `CRON_SECRET` | Bearer token Vercel Cron sends to `/api/cron/reminders`. |
+| `CRON_SECRET` | Bearer token Vercel Cron sends to `/api/cron/reminders` and `/api/cron/standings`. |
 | `FOUNDER_EMAILS` | Who can open `/founder`. |
 | `GOOGLE_MAPS_API_KEY` | Venue finder on the session form via Google Places Autocomplete (New). Empty uses Photon (OpenStreetMap, no key). |
 | `GOLF_COURSE_API_KEY` | golfcourseapi.com key so golf course search reaches beyond our own library. |
@@ -68,7 +68,15 @@ Payments are destination charges to the organiser's account with Roll Call's fee
 - Golf sessions have a course picker: search our `courses` library first, then golfcourseapi.com when `GOLF_COURSE_API_KEY` is set (UK results only). Using a provider card copies it into the library. Organisers can also scan a photo of the card (`ANTHROPIC_API_KEY`) or type the par and stroke-index rows; both can be saved to the library. Corrections made from "Fix pars and stroke indexes" update the library copy, so the next crew gets the right card.
 
 ## Reminders
-`vercel.json` schedules `/api/cron/reminders` daily at 09:00 UTC (Hobby plans allow one daily cron; Pro can run it hourly). The job emails members who haven't answered a session whose commit-by moment is within 24 hours, and the organiser a headcount, once per session. It needs `CRON_SECRET` and `RESEND_API_KEY`. Members without an email are skipped; the organiser's "Nudge the stragglers" button covers them through WhatsApp.
+`vercel.json` schedules two jobs. `/api/cron/reminders` runs daily at 09:00 UTC (Hobby plans allow one daily cron; Pro can run it hourly). The job emails members who haven't answered a session whose commit-by moment is within 24 hours, and the organiser a headcount, once per session. It needs `CRON_SECRET` and `RESEND_API_KEY`. Members without an email are skipped; the organiser's "Nudge the stragglers" button covers them through WhatsApp.
+
+`/api/cron/standings` runs daily at 07:00 UTC and refreshes every league table whose feed is older
+than six hours. Daily is the floor rather than the ceiling: the League tab also triggers a refresh
+after the response when someone opens a stale table, so tables stay live on a Hobby plan without
+extra cron budget. On Pro you can drop the schedule to `0 */6 * * *` and skip the on-view pull.
+Only `fulltime.thefa.com` and `leaguerepublic.com` are fetched, checked again after any redirect,
+with an 8s timeout and a 1MB cap. A failed pull records the reason and leaves the last good table in
+place.
 
 ## Backups
 SQLite: copy the file (`sqlite3 data/rollcall.db ".backup backup.db"`) or use Turso's point-in-time restore.

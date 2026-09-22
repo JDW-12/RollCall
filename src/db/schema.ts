@@ -151,9 +151,9 @@ export const sessions = sqliteTable(
 );
 
 /**
- * A league or cup the crew plays in. The FA does not offer an API for Full-Time, so a competition
- * holds a link out, an optional official Full-Time feed to embed, and a standings snapshot the
- * manager pastes in. Fixtures and results are Roll Call's own, entered by the manager.
+ * A league or cup the crew plays in. There is no open API for Full-Time, but the league's own admin
+ * can issue an official feed snippet, and that feed is what keeps the table live. Failing that the
+ * manager pastes the table. Fixtures and results are Roll Call's own, entered by the manager.
  */
 export const competitions = sqliteTable(
   "competitions",
@@ -172,13 +172,23 @@ export const competitions = sqliteTable(
     embedUrl: text("embed_url").notNull().default(""),
     /** Our team's name as the league spells it, so its row is highlighted in the table. */
     teamName: text("team_name").notNull().default(""),
-    /** JSON standings rows pasted from the league site. Null when the crew's own results drive the table. */
+    /** JSON standings rows, from the league's own feed or pasted by the manager. */
     standings: text("standings"),
     standingsUpdatedAt: ts("standings_updated_at"),
+    /** Where the rows came from last: feed | manual. Drives the "live" badge. */
+    standingsSource: text("standings_source", { enum: ["feed", "manual"] }).notNull().default("manual"),
+    /** The league's official feed address, read out of the snippet the manager pasted. Host-checked. */
+    feedUrl: text("feed_url").notNull().default(""),
+    /** How to read that feed: fulltime_snippet | leaguerepublic_api | none. */
+    feedKind: text("feed_kind", { enum: ["fulltime_snippet", "leaguerepublic_api", "none"] }).notNull().default("none"),
+    /** Last successful pull. Null when the feed has never worked. */
+    syncedAt: ts("synced_at"),
+    /** Why the last pull failed, shown to the organiser. Empty when all is well. */
+    syncError: text("sync_error").notNull().default(""),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
   },
-  (t) => [index("competitions_crew_idx").on(t.crewId)],
+  (t) => [index("competitions_crew_idx").on(t.crewId), index("competitions_sync_idx").on(t.feedKind, t.syncedAt)],
 );
 
 /** Per-player numbers from one fixture: goals, assists and the manager's mark out of ten. */

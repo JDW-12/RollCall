@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromLocalInput, toLocalInput, pounds, parsePounds } from "./format";
+import { fromLocalInput, toLocalInput, pounds, parsePounds, fmtAgo } from "./format";
 
 describe("London time round-trips", () => {
   it("handles BST and GMT", () => {
@@ -28,5 +28,22 @@ describe("pounds", () => {
     expect(parsePounds("6.5")).toBe(650);
     expect(parsePounds("£65")).toBe(6500);
     expect(parsePounds("abc")).toBeNull();
+  });
+});
+
+describe("fmtAgo", () => {
+  const now = new Date("2026-09-22T12:00:00Z");
+  const ago = (ms: number) => fmtAgo(new Date(now.getTime() - ms), now);
+
+  it("reads the recent past in the unit that fits", () => {
+    expect(ago(10_000)).toBe("just now");
+    expect(ago(12 * 60_000)).toBe("12 minutes ago");
+    expect(ago(60 * 60_000)).toBe("1 hour ago");
+    expect(ago(5 * 60 * 60_000)).toBe("5 hours ago");
+    expect(ago(3 * 24 * 60 * 60_000)).toBe("3 days ago");
+  });
+
+  it("falls back to a date once it is over a month old", () => {
+    expect(ago(60 * 24 * 60 * 60_000)).toMatch(/Jul/);
   });
 });

@@ -121,12 +121,36 @@ Redeploy after adding any of them.
 Nothing to buy, nothing to configure. In the app:
 
 1. Crew settings → League and cups → fill in the division or cup name, paste the link to your league page (FA Full-Time, Powerleague or wherever it lives) and put your team's name in exactly as the league spells it.
-2. Open the league page, select the table, copy it, and paste it into the box. Column order doesn't matter; rows that aren't teams are ignored.
+2. **Make the table live** — see below. If you can't, copy the table off the league page and paste it into the box instead. Column order doesn't matter; rows that aren't teams are ignored.
 3. Pin a fixture: pick the competition, type the opponent, choose home or away. It behaves like any other session, so people tap in as usual.
 4. After the game, on the session page: enter the score and each player's goals, assists and mark out of ten.
 5. The League tab now has your record and form, the table with your row highlighted, every result and the season's player stats.
 
-Re-paste the table whenever it moves. There is no live sync: the FA has said publicly that it does not offer an API for Full-Time, and Powerleague has none either.
+### Making the table live
+
+There is no open API for FA Full-Time or Powerleague, and the FA has deliberately closed its public
+snippet pages to stop products scraping league data. The route it does support is the **feed snippet
+a league or team admin generates for their own club**. Roll Call reads that snippet, pulls the table
+on a schedule and renders it in the crew's own design.
+
+**FA Full-Time:** log in to Full-Time Admin → **Media → Code Snippets** → generate a **Table**
+snippet for your division → copy the whole block.
+**LeagueRepublic:** league admin → **API → Code Snippets** → create a theme → generate the
+standings snippet.
+
+Paste it into **Live table** in Crew settings → League and cups. Roll Call pulls it straight away, so
+you find out on the spot whether it works. After that it refreshes on its own: nightly by cron, and
+again whenever someone opens the League tab on a table more than six hours old. There's a **Refresh**
+button on the tab for when the league has just updated and you don't want to wait.
+
+If the feed stops answering, the last good table stays on the hub with a note against it — a broken
+feed never leaves the crew staring at nothing — and you can always paste the rows by hand.
+
+**No admin access?** Ask your league secretary for a Table snippet; it takes them a minute and costs
+them nothing. Until then, paste the table and re-paste it whenever it moves.
+
+Only `fulltime.thefa.com` and `leaguerepublic.com` are ever fetched: a snippet pointing anywhere else
+is refused rather than followed, including through a redirect.
 
 ## Step 7. Name and domain (when you decide)
 

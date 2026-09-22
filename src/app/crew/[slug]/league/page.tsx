@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { after } from "next/server";
 import { nowMs } from "@/lib/clock";
 import { requireCrewPage } from "@/lib/access";
 import { crewMatchStats, listCompetitions, listFixtures, listMembers } from "@/lib/queries";
@@ -11,6 +12,9 @@ import { Avatar } from "@/components/avatar";
 import { ResultPills } from "@/components/sparkline";
 import { IconBolt, IconFlag, IconMedal, IconPin } from "@/components/icons";
 import { EmptyState, Eyebrow, LinkButton, PageTitle, Panel, Pill, Stat, cls } from "@/components/ui";
+import { StandingsError, StandingsStatus } from "@/components/standings-status";
+import { REFRESH_MS, syncCompetition } from "@/lib/league-feed";
+import { allow } from "@/lib/ratelimit";
 import { fmtDay, relativeDay } from "@/lib/format";
 
 export const metadata: Metadata = { title: "League" };
@@ -29,6 +33,17 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
   const upcoming = mine.filter((f) => f.goalsFor === null && f.startsAt.getTime() > now - 6 * 60 * 60_000).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   const record = teamRecord(mine.map((f) => ({ goalsFor: f.goalsFor, goalsAgainst: f.goalsAgainst, startsAt: f.startsAt.getTime(), competitionId: f.competitionId })));
   const standings: StandingRow[] = selected?.standings ? (JSON.parse(selected.standings) as StandingRow[]) : [];
+
+  // Opportunistic refresh: whoever opens a stale table triggers the next pull once the response has
+  // gone out, so the hub is live for crews that actually use it without leaning on the cron alone.
+  // The rate limit is keyed on the competition, so a dozen team-mates opening it at once is one pull.
+  if (selected?.feedUrl && selected.feedKind !== "none" && now - (selected.syncedAt?.getTime() ?? 0) > REFRESH_MS) {
+    const comp = selected;
+    after(async () => {
+      // Keyed on the competition, prefixed so it can never collide with a real user id.
+      if (await allow("standings_sync", `comp:${comp.id}`, 1, REFRESH_MS)) await syncCompetition(comp);
+    });
+  }
   const usInTable = standings.find((r) => sameTeam(r.team, selected?.teamName || crew.name));
   const stats = seasonStats(season.stats, season.appearances);
   const leaders = seasonLeaders(stats);
@@ -143,8 +158,9 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
             <section className="flex flex-col gap-2 anim-rise-2">
               <div className="flex items-end justify-between gap-3">
                 <Eyebrow>The table</Eyebrow>
-                <span className="text-xs text-ink-3">{selected?.standingsUpdatedAt ? `Pasted ${fmtDay(selected.standingsUpdatedAt)}` : ""}</span>
+                {selected ? <StandingsStatus competition={selected} crewId={crew.id} isOrganiser={isOrganiser} /> : null}
               </div>
+              {selected && isOrganiser ? <StandingsError competition={selected} /> : null}
               <Panel className="overflow-x-auto">
                 <table className="w-full text-sm font-mono tnum">
                   <thead>
@@ -183,11 +199,11 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
             <Panel className="p-4 anim-rise-2">
               <Eyebrow className="mb-2">The table</Eyebrow>
               <p className="text-sm text-ink-2">
-                Neither the FA nor Powerleague offer a feed anyone can read, so the table is pasted in.{" "}
+                Paste the official snippet from your league admin and the table keeps itself up to date here.{" "}
                 <Link href={`/crew/${crew.slug}/settings#league`} className="underline font-semibold text-pitch">
-                  Copy it off your league page
-                </Link>{" "}
-                and it renders here.
+                  Set up the live table
+                </Link>
+                , or copy the rows off your league page if you haven&apos;t got admin access.
               </p>
             </Panel>
           ) : null}
