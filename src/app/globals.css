@@ -112,6 +112,10 @@ h1, h2, h3, .display {
 
 .tnum { font-variant-numeric: tabular-nums; }
 
+/* Tight stat grids: the browser's spinner arrows eat half the box. */
+.no-spin { -moz-appearance: textfield; appearance: textfield; }
+.no-spin::-webkit-outer-spin-button, .no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
 :where(a, button, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

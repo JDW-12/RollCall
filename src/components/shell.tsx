@@ -6,9 +6,9 @@ import { Avatar } from "./avatar";
 import { cls } from "./ui";
 import { Wordmark } from "./logo";
 import { SandboxBanner } from "./sandbox-banner";
-import { IconCalendar, IconCoins, IconHome, IconPeople, IconTrophy, SportIcon } from "./icons";
+import { IconCalendar, IconCoins, IconFlag, IconHome, IconPeople, IconTrophy, SportIcon } from "./icons";
 
-const tabs = [
+const baseTabs = [
   { key: "", label: "Home", Icon: IconHome },
   { key: "sessions", label: "Sessions", Icon: IconCalendar },
   { key: "table", label: "Table", Icon: IconTrophy },
@@ -16,8 +16,15 @@ const tabs = [
   { key: "settings", label: "Crew", Icon: IconPeople },
 ];
 
+/** Sports played against another club get a League tab; a gym crew has nothing to put in it. */
+function tabsFor(sportKey: string) {
+  if (!sportOf(sportKey).finders.length) return baseTabs;
+  return [...baseTabs.slice(0, 3), { key: "league", label: "League", Icon: IconFlag }, ...baseTabs.slice(3)];
+}
+
 export function CrewShell({ crew, user, active, children, wide = false }: { crew: Crew; user: User; active: string; children: ReactNode; wide?: boolean }) {
   const sport = sportOf(crew.sport);
+  const tabs = tabsFor(crew.sport);
   const width = wide ? "max-w-5xl" : "max-w-3xl";
   return (
     <div className="flex flex-col min-h-full">
@@ -53,7 +60,7 @@ export function CrewShell({ crew, user, active, children, wide = false }: { crew
         {children}
       </main>
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-20 bg-panel/90 backdrop-blur-md border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Crew">
-        <div className="grid grid-cols-5">
+        <div className={cls("grid", tabs.length === 6 ? "grid-cols-6" : "grid-cols-5")}>
           {tabs.map((t) => (
             <Link
               key={t.key}

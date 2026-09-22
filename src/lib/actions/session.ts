@@ -32,6 +32,10 @@ const sessionSchema = z.object({
   costPence: z.number().int().min(0),
   rsvpDeadlineAt: z.date().nullable(),
   notes: z.string().trim().max(500),
+  competitionId: z.string().nullable(),
+  opponent: z.string().trim().max(60),
+  homeAway: z.enum(["home", "away", "neutral"]),
+  round: z.string().trim().max(40),
 });
 
 function parseSessionForm(fd: FormData) {
@@ -54,7 +58,19 @@ function parseSessionForm(fd: FormData) {
     costPence,
     rsvpDeadlineAt,
     notes: str(fd, "notes"),
+    competitionId: str(fd, "competitionId") || null,
+    opponent: str(fd, "opponent"),
+    homeAway: (["home", "away", "neutral"] as const).find((x) => x === str(fd, "homeAway")) ?? "home",
+    round: str(fd, "round"),
   });
+}
+
+/** A fixture can only belong to this crew's own competitions; anything else is dropped. */
+async function ownCompetition(crewId: string, competitionId: string | null): Promise<string | null> {
+  if (!competitionId) return null;
+  const db = await getDb();
+  const row = (await db.select({ id: schema.competitions.id }).from(schema.competitions).where(and(eq(schema.competitions.id, competitionId), eq(schema.competitions.crewId, crewId))).limit(1))[0];
+  return row?.id ?? null;
 }
 
 export async function createSession(_prev: ActionState, fd: FormData): Promise<ActionState> {
@@ -66,7 +82,7 @@ export async function createSession(_prev: ActionState, fd: FormData): Promise<A
     const db = await getDb();
     const id = newId();
     const now = new Date();
-    await db.insert(schema.sessions).values({ id, crewId: crew.id, ...input, status: "open", createdBy: user.id, createdAt: now });
+    await db.insert(schema.sessions).values({ id, crewId: crew.id, ...input, competitionId: await ownCompetition(crew.id, input.competitionId), status: "open", createdBy: user.id, createdAt: now });
     // The organiser is in by default. They pinned it, they're playing.
     if (str(fd, "organiserIn") === "yes") {
       await db.insert(schema.rsvps).values({ id: newId(), sessionId: id, userId: user.id, status: "in", queuedAt: now, respondedAt: now });
@@ -91,7 +107,7 @@ export async function updateSession(_prev: ActionState, fd: FormData): Promise<A
     const input = parseSessionForm(fd);
     const db = await getDb();
     const promoted = await db.transaction(async (tx) => {
-      await tx.update(schema.sessions).set(input).where(eq(schema.sessions.id, session.id));
+      await tx.update(schema.sessions).set({ ...input, competitionId: await ownCompetition(crew.id, input.competitionId) }).where(eq(schema.sessions.id, session.id));
       if (input.capacity === session.capacity) return [] as string[];
       const rows = await tx.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
       const res = applyCapacityChange(rows.map(toRow), input.capacity, Date.now());

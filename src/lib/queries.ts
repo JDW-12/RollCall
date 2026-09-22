@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db/client";
 import { ratingsFor } from "@/domain/ratings";
 import { computeTable, type TableRow } from "@/domain/table";
 import { balances, type Balance } from "@/domain/money";
+import type { Appearance, MatchStatRow } from "@/domain/match-stats";
 
 export type Member = schema.User & { role: schema.CrewMember["role"]; joinedAt: Date };
 
@@ -41,6 +42,7 @@ export async function getSession(sessionId: string): Promise<schema.Session | nu
 
 export type SessionBundle = {
   session: schema.Session;
+  matchStats: schema.MatchStat[];
   rsvps: schema.Rsvp[];
   attendance: schema.Attendance[];
   ratings: schema.Rating[];
@@ -53,17 +55,18 @@ export async function getSessionBundle(sessionId: string): Promise<SessionBundle
   const db = await getDb();
   const session = await getSession(sessionId);
   if (!session) return null;
-  const [rsvps, att, rats, gms, led] = await Promise.all([
+  const [rsvps, att, rats, gms, led, ms] = await Promise.all([
     db.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, sessionId)).orderBy(asc(schema.rsvps.queuedAt)),
     db.select().from(schema.attendance).where(eq(schema.attendance.sessionId, sessionId)),
     db.select().from(schema.ratings).where(eq(schema.ratings.sessionId, sessionId)),
     db.select().from(schema.games).where(eq(schema.games.sessionId, sessionId)),
     db.select().from(schema.ledger).where(eq(schema.ledger.sessionId, sessionId)),
+    db.select().from(schema.matchStats).where(eq(schema.matchStats.sessionId, sessionId)),
   ]);
   const entries = gms.length
     ? await db.select().from(schema.gameEntries).where(inArray(schema.gameEntries.gameId, gms.map((g) => g.id)))
     : [];
-  return { session, rsvps, attendance: att, ratings: rats, games: gms, entries, ledger: led };
+  return { session, rsvps, attendance: att, ratings: rats, games: gms, entries, ledger: led, matchStats: ms };
 }
 
 export async function getNextSession(crewId: string, now = new Date()): Promise<schema.Session | null> {
@@ -162,4 +165,39 @@ export async function organisesAnyCrew(userId: string): Promise<boolean> {
     .where(and(eq(schema.crewMembers.userId, userId), eq(schema.crewMembers.role, "organiser")))
     .limit(1);
   return rows.length > 0;
+}
+
+export async function listCompetitions(crewId: string): Promise<schema.Competition[]> {
+  const db = await getDb();
+  return db.select().from(schema.competitions).where(eq(schema.competitions.crewId, crewId)).orderBy(asc(schema.competitions.name));
+}
+
+export async function getCompetition(id: string): Promise<schema.Competition | null> {
+  const db = await getDb();
+  return (await db.select().from(schema.competitions).where(eq(schema.competitions.id, id)).limit(1))[0] ?? null;
+}
+
+/** Sessions that are fixtures: they belong to a competition or name an opponent. Newest first. */
+export async function listFixtures(crewId: string): Promise<schema.Session[]> {
+  const all = await listSessions(crewId);
+  return all.filter((s) => s.status !== "cancelled" && (s.competitionId || s.opponent));
+}
+
+/**
+ * Everything the season's player stats need: the numbers entered per fixture, and an appearance for
+ * everyone marked as having turned up to one.
+ */
+export async function crewMatchStats(crewId: string): Promise<{ stats: MatchStatRow[]; appearances: Appearance[] }> {
+  const db = await getDb();
+  const fixtures = await listFixtures(crewId);
+  const ids = fixtures.map((f) => f.id);
+  if (!ids.length) return { stats: [], appearances: [] };
+  const [stats, att] = await Promise.all([
+    db.select().from(schema.matchStats).where(inArray(schema.matchStats.sessionId, ids)),
+    db.select().from(schema.attendance).where(inArray(schema.attendance.sessionId, ids)),
+  ]);
+  return {
+    stats: stats.map((s) => ({ sessionId: s.sessionId, userId: s.userId, goals: s.goals, assists: s.assists, rating: s.rating })),
+    appearances: att.filter((a) => a.attended).map((a) => ({ sessionId: a.sessionId, userId: a.userId })),
+  };
 }

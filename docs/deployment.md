@@ -59,6 +59,10 @@ npm run check && npm run build && PLAYWRIGHT_CHROMIUM_PATH=... npm run test:e2e
 4. An organiser opens Crew settings → "Set up card payments" and completes Stripe's hosted onboarding. When Stripe reports charges enabled, members see "Pay £x by card" wherever they owe.
 Payments are destination charges to the organiser's account with Roll Call's fee as the application fee. Roll Call never holds funds.
 
+## Leagues and cups
+- No integration keys are needed and nothing is fetched from a league provider. The FA's own grassroots support states it does not offer APIs for Full-Time, and Powerleague has none either, so a competition stores a link out and a standings snapshot the manager pastes. Only `http(s)` links are stored, and a Full-Time embed address is accepted only when the host is `fulltime.thefa.com`.
+- Fixtures are ordinary sessions with a competition, an opponent, a home-or-away and an optional round. Results and per-player numbers live in `match_stats` and drive the League tab.
+
 ## Venue finder and golf cards
 - The session form's venue field looks places up as you type (`/api/places`, members only). With `GOOGLE_MAPS_API_KEY` it uses Places Autocomplete (New) restricted to GB and biased to London; restrict the key to that API in Google Cloud. Without a key it uses Photon, which is fine for a pilot but has no uptime promise.
 - Golf sessions have a course picker: search our `courses` library first, then golfcourseapi.com when `GOLF_COURSE_API_KEY` is set (UK results only). Using a provider card copies it into the library. Organisers can also scan a photo of the card (`ANTHROPIC_API_KEY`) or type the par and stroke-index rows; both can be saved to the library. Corrections made from "Fix pars and stroke indexes" update the library copy, so the next crew gets the right card.

@@ -85,6 +85,42 @@ export async function seedDemo(db: Db, log: (line: string) => void = () => {}): 
   );
   await db.insert(schema.feed).values({ id: newId(), crewId, sessionId: null, kind: "crew_created", payload: JSON.stringify({ by: sam.id, name: "Tuesday FC" }), createdAt: seasonStart });
 
+  // The league they play in on Sundays, with the table as the manager pasted it off Full-Time.
+  const competitionId = newId();
+  await db.insert(schema.competitions).values({
+    id: competitionId,
+    crewId,
+    name: "Hackney Sunday, Division 3",
+    kind: "league",
+    provider: "fa_fulltime",
+    externalUrl: "https://fulltime.thefa.com/",
+    embedUrl: "",
+    teamName: "Tuesday FC",
+    standings: JSON.stringify(
+      [
+        ["Hackney Wick FC", 12, 9, 2, 1, 34, 14, 29],
+        ["Tuesday FC", 12, 8, 2, 2, 31, 17, 26],
+        ["London Fields United", 12, 7, 1, 4, 26, 20, 22],
+        ["Marshes Rovers", 12, 4, 3, 5, 19, 22, 15],
+        ["Clapton Casuals", 12, 1, 2, 9, 11, 34, 5],
+      ].map(([team, played, won, drawn, lost, goalsFor, goalsAgainst, points], i) => ({
+        position: i + 1,
+        team,
+        played,
+        won,
+        drawn,
+        lost,
+        goalsFor,
+        goalsAgainst,
+        goalDifference: (goalsFor as number) - (goalsAgainst as number),
+        points,
+      })),
+    ),
+    standingsUpdatedAt: new Date(now.getTime() - 2 * D),
+    createdAt: seasonStart,
+    updatedAt: new Date(now.getTime() - 2 * D),
+  });
+
   // Attendance pattern per player over 14 played weeks. "in" = played, "late" = late drop, "no" = no-show, "out" = said no early, "res" = reserve, "" = didn't answer.
   const pattern: Record<string, string[]> = {
     [sam.id]: Array(14).fill("in"),

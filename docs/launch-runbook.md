@@ -116,6 +116,18 @@ All three work without keys in a reduced form. Add them when the reduced form st
 
 Redeploy after adding any of them.
 
+## Step 6c. Link your league (football and padel)
+
+Nothing to buy, nothing to configure. In the app:
+
+1. Crew settings → League and cups → fill in the division or cup name, paste the link to your league page (FA Full-Time, Powerleague or wherever it lives) and put your team's name in exactly as the league spells it.
+2. Open the league page, select the table, copy it, and paste it into the box. Column order doesn't matter; rows that aren't teams are ignored.
+3. Pin a fixture: pick the competition, type the opponent, choose home or away. It behaves like any other session, so people tap in as usual.
+4. After the game, on the session page: enter the score and each player's goals, assists and mark out of ten.
+5. The League tab now has your record and form, the table with your row highlighted, every result and the season's player stats.
+
+Re-paste the table whenever it moves. There is no live sync: the FA has said publicly that it does not offer an API for Full-Time, and Powerleague has none either.
+
 ## Step 7. Name and domain (when you decide)
 
 1. Pick the name. Check the `.co.uk` / `.club` / `.app` domain and the Instagram and TikTok handles in one sitting; a name without all three is a headache later.

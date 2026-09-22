@@ -24,8 +24,12 @@ export function LinkButton({ variant = "primary", className, ...props }: Compone
   return <Link {...props} className={cls(base, variants[variant], className)} />;
 }
 
-export function Panel({ className, children, as: Tag = "section" }: { className?: string; children: ReactNode; as?: "section" | "div" | "article" }) {
-  return <Tag className={cls("surface", className)}>{children}</Tag>;
+export function Panel({ className, children, id, as: Tag = "section" }: { className?: string; children: ReactNode; id?: string; as?: "section" | "div" | "article" }) {
+  return (
+    <Tag id={id} className={cls("surface", className)}>
+      {children}
+    </Tag>
+  );
 }
 
 export function Pill({ tone = "neutral", children, className }: { tone?: "neutral" | "good" | "warn" | "bad" | "ink"; children: ReactNode; className?: string }) {

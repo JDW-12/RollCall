@@ -50,6 +50,13 @@
       "when": 1790027602610,
       "tag": "0006_crew_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790066239193,
+      "tag": "0007_competitions",
+      "breakpoints": true
     }
   ]
 }

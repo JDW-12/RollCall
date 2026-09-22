@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requireCrewPage } from "@/lib/access";
-import { getSession } from "@/lib/queries";
+import { getSession, listCompetitions } from "@/lib/queries";
 import { CrewShell } from "@/components/shell";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { SessionFields } from "@/components/session-form";
@@ -26,7 +26,7 @@ export default async function EditSessionPage({ params }: { params: Promise<{ sl
       </PageTitle>
       <ActionForm action={updateSession} className="max-w-md" marker="session-form">
         <input type="hidden" name="sessionId" value={session.id} />
-        <SessionFields defaultSport={isSportKey(crew.sport) ? crew.sport : "football"} session={session} crewLateDropHours={crew.lateDropHours} venues={venueSuggestions(isSportKey(crew.sport) ? crew.sport : "football", await venueHistory(crew.id))} />
+        <SessionFields defaultSport={isSportKey(crew.sport) ? crew.sport : "football"} session={session} crewLateDropHours={crew.lateDropHours} venues={venueSuggestions(isSportKey(crew.sport) ? crew.sport : "football", await venueHistory(crew.id))} competitions={await listCompetitions(crew.id)} />
         <SubmitButton pendingText="Saving…" className="min-h-14 text-base">
           Save changes
         </SubmitButton>

@@ -14,6 +14,9 @@ export type RatingCategory = {
 
 export type GameKind = "teams" | "americano" | "stableford" | "predictor";
 
+/** Where to go and find a league, a club or a venue for this sport. Plain links out, no API. */
+export type Finder = { label: string; url: string; blurb: string };
+
 export type SportDef = {
   key: SportKey;
   label: string;
@@ -31,6 +34,8 @@ export type SportDef = {
   games: GameKind[];
   /** Short line used in marketing and crew setup. */
   pitch: string;
+  /** League and club finders for this sport, shown when a crew has no competition linked yet. */
+  finders: Finder[];
 };
 
 export const SPORTS: Record<SportKey, SportDef> = {
@@ -51,6 +56,11 @@ export const SPORTS: Record<SportKey, SportDef> = {
     ],
     games: ["teams"],
     pitch: "5-a-side every week with the same lot. Ten spots, a court to pay for, and someone always drops on the day.",
+    finders: [
+      { label: "FA Full-Time", url: "https://fulltime.thefa.com/", blurb: "Grassroots league tables, fixtures and results. Find your division, then paste the table in." },
+      { label: "Powerleague", url: "https://www.powerleague.co.uk/league-fixtures", blurb: "5, 6 and 7-a-side leagues at their centres. Your league page has the table and fixtures." },
+      { label: "The FA", url: "https://www.thefa.com/", blurb: "Find a team, a league or a session near you." },
+    ],
   },
   padel: {
     key: "padel",
@@ -69,6 +79,9 @@ export const SPORTS: Record<SportKey, SportDef> = {
     ],
     games: ["americano"],
     pitch: "A court for four at peak time is gold dust. When one drops, the whole booking is at risk.",
+    finders: [
+      { label: "LTA", url: "https://www.lta.org.uk/", blurb: "Find padel venues, leagues and box leagues near you." },
+    ],
   },
   golf: {
     key: "golf",
@@ -87,6 +100,9 @@ export const SPORTS: Record<SportKey, SportDef> = {
     ],
     games: ["stableford"],
     pitch: "Fourballs, society days and the Stableford scorecard with money on it, all in one place.",
+    finders: [
+      { label: "England Golf", url: "https://www.englandgolf.org/", blurb: "Find a club, a society day or your handicap record." },
+    ],
   },
   gym: {
     key: "gym",
@@ -105,6 +121,7 @@ export const SPORTS: Record<SportKey, SportDef> = {
     ],
     games: [],
     pitch: "The crew that trains together turns up. Streaks and a table beat a fitness app you open alone.",
+    finders: [],
   },
   motorsport: {
     key: "motorsport",
@@ -123,6 +140,9 @@ export const SPORTS: Record<SportKey, SportDef> = {
     ],
     games: ["predictor"],
     pitch: "Sunday race with the group chat. Podium predictions, bragging rights, no bookies.",
+    finders: [
+      { label: "Motorsport UK", url: "https://www.motorsportuk.org/", blurb: "Find a club, a licence or a race meeting." },
+    ],
   },
 };
 

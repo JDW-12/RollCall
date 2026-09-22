@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { optionalCrewPage } from "@/lib/access";
 import { SessionPreview } from "@/components/previews";
 import { track } from "@/lib/events";
-import { getCrewLedger, getSessionBundle, listMembers } from "@/lib/queries";
+import { getCompetition, getCrewLedger, getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { playing, reserves, summarise } from "@/domain/rsvp";
@@ -27,6 +27,7 @@ import { Button, Eyebrow, LinkButton, Notice, Panel, Pill, Stat, cls } from "@/c
 import { TeamsPanel } from "@/components/games/teams";
 import { AmericanoPanel } from "@/components/games/americano";
 import { StablefordPanel } from "@/components/games/stableford";
+import { MatchResultPanel } from "@/components/match-result";
 import { courseApiConfigured } from "@/lib/golf-courses";
 import { scanConfigured } from "@/lib/scan-card";
 import { PredictorPanel } from "@/components/games/predictor";
@@ -51,7 +52,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
     return <SessionPreview crew={gate.crew} session={bundle.session} rsvps={bundle.rsvps} members={await listMembers(gate.crew.id)} />;
   }
   const { crew, user, isOrganiser } = gate.member;
-  const { session, rsvps, attendance, ratings, games, entries, ledger } = bundle;
+  const { session, rsvps, attendance, ratings, games, entries, ledger, matchStats } = bundle;
   const members = await listMembers(crew.id);
   const sport = sportOf(session.sport);
   const rows = toRows(rsvps);
@@ -79,6 +80,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
 
   // Awards: most votes per category.
   const cats = ratingsFor(crew.sport, crew.ratings);
+  const competition = session.competitionId ? await getCompetition(session.competitionId) : null;
+  const isFixture = !!(session.competitionId || session.opponent);
   const awards = cats.map((c) => {
     const counts = new Map<string, number>();
     for (const r of ratings) if (r.category === c.key) counts.set(r.rateeId, (counts.get(r.rateeId) ?? 0) + 1);
@@ -302,6 +305,18 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
             ) : null}
             <ShareButtons text={shareText} url={url} crewId={crew.id} sessionId={session.id} what={shareWhat} compact label="Share recap" />
           </Panel>
+
+          {isFixture ? (
+            <MatchResultPanel
+              session={session}
+              crewName={competition?.teamName || crew.name}
+              competitionName={competition?.name ?? null}
+              members={members}
+              attendedIds={attended.map((a) => a.userId)}
+              stats={matchStats}
+              isOrganiser={isOrganiser}
+            />
+          ) : null}
 
           <div className="mt-4">
             <Eyebrow className="mb-2">Awards</Eyebrow>

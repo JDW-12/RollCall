@@ -1,7 +1,7 @@
 import { appUrl } from "@/lib/env";
 import type { Metadata } from "next";
 import { requireCrewPage } from "@/lib/access";
-import { listMembers } from "@/lib/queries";
+import { listCompetitions, listMembers } from "@/lib/queries";
 import { SPORTS, sportOf } from "@/domain/sports";
 import { CrewBand, CrewShell } from "@/components/shell";
 import { Avatar } from "@/components/avatar";
@@ -10,6 +10,7 @@ import { StripeConnectPanel } from "@/components/stripe-connect";
 import { refreshStripe } from "@/lib/actions/stripe";
 import { ensureCalendarToken } from "@/lib/actions/crew";
 import { CalendarBlock } from "@/components/calendar-block";
+import { LeagueSettings } from "@/components/league-settings";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconPeople, IconPin, IconShare, SportIcon } from "@/components/icons";
 import { Button, Eyebrow, Field, Panel, Pill } from "@/components/ui";
@@ -31,7 +32,7 @@ export default async function SettingsPage({ params, searchParams }: { params: P
     crew = (await requireCrewPage(slug)).crew;
   }
   if (!crew.calendarToken) crew = { ...crew, calendarToken: await ensureCalendarToken(crew.id) };
-  const members = await listMembers(crew.id);
+  const [members, competitions] = await Promise.all([listMembers(crew.id), listCompetitions(crew.id)]);
   const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
   const organisers = members.filter((m) => m.role === "organiser").length;
@@ -140,6 +141,8 @@ export default async function SettingsPage({ params, searchParams }: { params: P
       </Panel>
 
       <CalendarBlock crew={crew} appUrl={await appUrl()} />
+
+      {isOrganiser && sport.finders.length ? <LeagueSettings crew={crew} competitions={competitions} sport={sport} /> : null}
 
       {isOrganiser ? <StripeConnectPanel crew={crew} /> : null}
 

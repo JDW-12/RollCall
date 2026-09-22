@@ -132,13 +132,73 @@ export const sessions = sqliteTable(
       .notNull()
       .default("open"),
     notes: text("notes").notNull().default(""),
+    /** Competition this fixture belongs to: a league, a cup run, or nothing for a kickabout. */
+    competitionId: text("competition_id").references(() => competitions.id, { onDelete: "set null" }),
+    opponent: text("opponent").notNull().default(""),
+    homeAway: text("home_away", { enum: ["home", "away", "neutral"] }).notNull().default("home"),
+    /** Cup round or matchday label, e.g. "Quarter-final", "Week 3". */
+    round: text("round").notNull().default(""),
+    /** Final score. Null until the manager enters it. */
+    goalsFor: integer("goals_for"),
+    goalsAgainst: integer("goals_against"),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),
     createdAt: ts("created_at").notNull(),
     playedAt: ts("played_at"),
   },
-  (t) => [index("sessions_crew_starts_idx").on(t.crewId, t.startsAt)],
+  (t) => [index("sessions_crew_starts_idx").on(t.crewId, t.startsAt), index("sessions_competition_idx").on(t.competitionId)],
+);
+
+/**
+ * A league or cup the crew plays in. The FA does not offer an API for Full-Time, so a competition
+ * holds a link out, an optional official Full-Time feed to embed, and a standings snapshot the
+ * manager pastes in. Fixtures and results are Roll Call's own, entered by the manager.
+ */
+export const competitions = sqliteTable(
+  "competitions",
+  {
+    id: text("id").primaryKey(),
+    crewId: text("crew_id")
+      .notNull()
+      .references(() => crews.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["league", "cup", "friendly"] }).notNull().default("league"),
+    /** Where it is run: fa_fulltime | powerleague | other | manual. Drives the badge and the link label. */
+    provider: text("provider").notNull().default("manual"),
+    /** Public page for the league or division, for the "open the league" link. */
+    externalUrl: text("external_url").notNull().default(""),
+    /** Official FA Full-Time feed URL, extracted from the league's own embed snippet. Host-checked. */
+    embedUrl: text("embed_url").notNull().default(""),
+    /** Our team's name as the league spells it, so its row is highlighted in the table. */
+    teamName: text("team_name").notNull().default(""),
+    /** JSON standings rows pasted from the league site. Null when the crew's own results drive the table. */
+    standings: text("standings"),
+    standingsUpdatedAt: ts("standings_updated_at"),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [index("competitions_crew_idx").on(t.crewId)],
+);
+
+/** Per-player numbers from one fixture: goals, assists and the manager's mark out of ten. */
+export const matchStats = sqliteTable(
+  "match_stats",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    goals: integer("goals").notNull().default(0),
+    assists: integer("assists").notNull().default(0),
+    /** Manager's rating, 1-10. Null when they didn't mark this player. */
+    rating: integer("rating"),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("match_stats_unique").on(t.sessionId, t.userId)],
 );
 
 export const rsvps = sqliteTable(
@@ -344,3 +404,5 @@ export type Game = typeof games.$inferSelect;
 export type GameEntry = typeof gameEntries.$inferSelect;
 export type FeedItem = typeof feed.$inferSelect;
 export type Course = typeof courses.$inferSelect;
+export type Competition = typeof competitions.$inferSelect;
+export type MatchStat = typeof matchStats.$inferSelect;

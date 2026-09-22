@@ -1,6 +1,6 @@
 import { nowMs } from "@/lib/clock";
 import type { ReactNode } from "react";
-import type { Session } from "@/db/schema";
+import type { Competition, Session } from "@/db/schema";
 import { SPORTS, sportOf, type SportKey } from "@/domain/sports";
 import { fmtDay, pounds, toLocalInput } from "@/lib/format";
 import { SportIcon } from "./icons";
@@ -10,7 +10,7 @@ import { VenueSearch } from "./venue-search";
 import type { VenueSuggestion } from "@/domain/venues";
 
 /** Fields for creating or editing a session. Rendered inside an ActionForm. */
-export function SessionFields({ defaultSport, session, crewLateDropHours, venues = [] }: { defaultSport: SportKey; session?: Session; crewLateDropHours: number; venues?: VenueSuggestion[] }) {
+export function SessionFields({ defaultSport, session, crewLateDropHours, venues = [], competitions = [] }: { defaultSport: SportKey; session?: Session; crewLateDropHours: number; venues?: VenueSuggestion[]; competitions?: Competition[] }) {
   const sport = sportOf(session?.sport ?? defaultSport);
   const chosen = session?.sport ?? defaultSport;
   const nextWeek = new Date(nowMs() + 7 * 86_400_000);
@@ -37,6 +37,46 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
           <textarea name="notes" rows={2} maxLength={500} defaultValue={session?.notes ?? ""} placeholder="Bibs are in Josh's car. Bring change for the barrier." />
         </Field>
       </Block>
+
+      {competitions.length ? (
+        <Block eyebrow="Fixture" className="anim-rise-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Competition" hint="League, cup or nothing for a friendly.">
+              <select name="competitionId" defaultValue={session?.competitionId ?? ""}>
+                <option value="">No competition</option>
+                {competitions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Round" hint="Optional. Cup round or matchday.">
+              <input name="round" maxLength={40} defaultValue={session?.round ?? ""} placeholder="Quarter-final" />
+            </Field>
+          </div>
+          <Field label="Opponent" hint="Leave empty for a kickabout with no opposition.">
+            <input name="opponent" maxLength={60} defaultValue={session?.opponent ?? ""} placeholder="Hackney Wick FC" autoComplete="off" />
+          </Field>
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="text-sm font-semibold text-ink mb-1.5">Home or away</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  ["home", "Home"],
+                  ["away", "Away"],
+                  ["neutral", "Neutral"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className="press flex items-center justify-center gap-2 rounded-md border border-line bg-panel-2 min-h-11 px-2 cursor-pointer text-sm font-semibold has-checked:border-pitch has-checked:bg-pitch-soft has-checked:text-pitch">
+                  <input type="radio" name="homeAway" value={value} defaultChecked={(session?.homeAway ?? "home") === value} className="sr-only" />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </Block>
+      ) : null}
 
       <Block eyebrow="When and where" className="anim-rise-2">
         <div className="grid grid-cols-2 gap-3">

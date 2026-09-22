@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { optionalCrewPage } from "@/lib/access";
 import { PlayerPreview } from "@/components/previews";
 import { track } from "@/lib/events";
-import { getCrewLedger, getCrewTable, getUser, golfRounds } from "@/lib/queries";
+import { crewMatchStats, getCrewLedger, getCrewTable, getUser, golfRounds } from "@/lib/queries";
 import { golfStats } from "@/domain/golf-stats";
+import { seasonStats } from "@/domain/match-stats";
 import { RESULT_LABEL } from "@/domain/golf-highlights";
 import { sportOf } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
@@ -15,7 +16,7 @@ import { PlayerCard } from "@/components/player-card";
 import { ShareButtons } from "@/components/share";
 import { AnimatedNumber } from "@/components/animated-number";
 import { FormDots } from "@/components/sparkline";
-import { IconCoins, IconFlame, IconGolf, IconTrophy } from "@/components/icons";
+import { IconCoins, IconFlag, IconFlame, IconGolf, IconTrophy } from "@/components/icons";
 import { PageTitle, Panel, Stat, cls } from "@/components/ui";
 import { pounds } from "@/lib/format";
 
@@ -53,6 +54,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   const rate = Math.round(turnUpRate(row) * 100);
   const maxVotes = Math.max(1, ...cats.map((c) => row.votes[c.key] ?? 0));
   const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
+  const fixtureSeason = sport.finders.length && !sport.games.includes("stableford") ? await crewMatchStats(crew.id) : null;
+  const pitch = fixtureSeason ? (seasonStats(fixtureSeason.stats, fixtureSeason.appearances).find((r) => r.userId === userId) ?? null) : null;
   const golfCard = golf ? { handicap: golf.handicap, avg: golf.avg, best: golf.best?.points ?? null, birdies: golf.results.birdie + golf.results.eagle + golf.results.albatross + golf.results.holeInOne, wins: golf.wins, rounds: golf.rounds } : null;
 
   return (
@@ -83,6 +86,23 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             />
             <Stat label="Sick notes" value={<AnimatedNumber value={row.sickNotes} />} tone={row.sickNotes > 0 ? "bad" : undefined} sub={`${row.lateDrops} late · ${row.noShows} no-show`} />
           </Panel>
+
+          {pitch && pitch.apps > 0 ? (
+            <Panel className="p-4 flex flex-col gap-3 anim-rise-3">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-md bg-ground-2 border border-line flex items-center justify-center shrink-0 text-pitch">
+                  <IconFlag size={16} />
+                </span>
+                <div className="eyebrow">Fixtures</div>
+              </div>
+              <div className="grid grid-cols-4 gap-x-3 gap-y-4">
+                <Stat label="Apps" value={<AnimatedNumber value={pitch.apps} />} />
+                <Stat label="Goals" value={<AnimatedNumber value={pitch.goals} />} tone={pitch.goals > 0 ? "good" : undefined} />
+                <Stat label="Assists" value={<AnimatedNumber value={pitch.assists} />} />
+                <Stat label="Avg" value={pitch.avgRating === null ? "–" : <AnimatedNumber value={pitch.avgRating} decimals={1} />} sub="manager's mark" />
+              </div>
+            </Panel>
+          ) : null}
 
           {golf ? (
             <Panel className="p-4 flex flex-col gap-3 anim-rise-3">
