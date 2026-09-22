@@ -42,7 +42,8 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
 
   // No table anywhere: see whether the teams they have played give their division away.
   let suggestion: DivisionMatch | null = null;
-  if (!standings.length && selected && isOrganiser) {
+  // Only for a league: a cup has no table, and its opponents would happily match someone's division.
+  if (!standings.length && selected?.kind === "league" && isOrganiser) {
     // Every opponent the crew has faced, not just the ones filed under this competition: most
     // managers pin a fixture without picking a competition, and those games still name the division.
     const opponents = fixtures.map((f) => f.opponent).filter(Boolean);
