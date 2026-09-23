@@ -18,6 +18,10 @@ describe("golfStats", () => {
     expect(s.rounds).toBe(3);
     expect(s.avg).toBe(37.3);
     expect(s.best).toEqual({ points: 46, title: "Round 1" });
+    // Gross against par: level, +18, level. The first level-par round is the best.
+    const total = par.reduce((a, p) => a + p, 0);
+    expect(s.bestScore).toEqual({ gross: total, par: total, toPar: 0, title: "Round 1" });
+    expect(s.avgToPar).toBe(6);
     expect(s.wins).toBe(2);
     expect(s.recent).toEqual([46, 30, 36]);
     expect(s.handicap).toBe(12);

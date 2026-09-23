@@ -126,3 +126,10 @@ export function fmtAgo(d: Date, now = new Date()): string {
   if (days < 30) return `${plural(days, "day")} ago`;
   return fmtDay(d);
 }
+
+/** Golf's way of writing a score against par: +22, E for level, −3 under. */
+export function fmtToPar(n: number): string {
+  const r = Math.round(n);
+  if (r === 0) return "E";
+  return r > 0 ? `+${r}` : `−${-r}`;
+}

@@ -9,18 +9,14 @@
  * tooltip, and a table view sits alongside for screen readers. A single series, so no legend.
  */
 
+import { fmtToPar } from "@/lib/format";
+
 export type FormRound = { sessionId: string; startsAt: number; course: string; gross: number; par: number; stableford: number; holes: number };
 
 const W = 300;
 const H = 132;
 const PAD = { l: 8, r: 8, t: 24, b: 22 };
 const BAR = 18;
-
-/** Golf's way of writing a score against par: +16, E, −2. */
-export function toPar(n: number): string {
-  if (n === 0) return "E";
-  return n > 0 ? `+${n}` : `−${-n}`;
-}
 
 /** A bar from the baseline to its value, rounded only at the data end (the top, or the bottom when under par). */
 function barPath(x: number, base: number, end: number, w: number, r = 4): string {
@@ -34,7 +30,7 @@ function barPath(x: number, base: number, end: number, w: number, r = 4): string
 const short = (ms: number) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }).format(new Date(ms));
 
 function describe(r: FormRound): string {
-  return `${r.course}, ${short(r.startsAt)}: ${r.gross} (${toPar(r.gross - r.par)}), par ${r.par}${r.holes === 9 ? ", 9 holes" : ""}`;
+  return `${r.course}, ${short(r.startsAt)}: ${r.gross} (${fmtToPar(r.gross - r.par)}), par ${r.par}${r.holes === 9 ? ", 9 holes" : ""}`;
 }
 
 export function FormChart({ rounds }: { rounds: FormRound[] }) {
@@ -80,7 +76,7 @@ export function FormChart({ rounds }: { rounds: FormRound[] }) {
                       {r.gross}
                     </tspan>
                     <tspan className="font-mono" dx={3} style={{ fill: "var(--ink-2)", fontSize: 9 }}>
-                      {toPar(diff)}
+                      {fmtToPar(diff)}
                     </tspan>
                   </text>
                 </g>
@@ -110,7 +106,7 @@ export function FormChart({ rounds }: { rounds: FormRound[] }) {
               <td>{short(r.startsAt)}</td>
               <td>{r.gross}</td>
               <td>{r.par}</td>
-              <td>{toPar(r.gross - r.par)}</td>
+              <td>{fmtToPar(r.gross - r.par)}</td>
             </tr>
           ))}
         </tbody>

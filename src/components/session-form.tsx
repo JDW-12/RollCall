@@ -150,7 +150,9 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
 
 function Block({ eyebrow, className, children }: { eyebrow: string; className?: string; children: ReactNode }) {
   return (
-    <section className={["surface p-4 flex flex-col gap-4", className].filter(Boolean).join(" ")}>
+    // Raised while something inside has focus: each block keeps a transform from its entrance animation,
+    // which stacks it on its own, so without this the next block paints over the venue suggestions.
+    <section className={["surface p-4 flex flex-col gap-4 relative focus-within:z-40", className].filter(Boolean).join(" ")}>
       <Eyebrow>{eyebrow}</Eyebrow>
       {children}
     </section>

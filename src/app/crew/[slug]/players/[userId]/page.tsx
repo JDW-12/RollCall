@@ -19,7 +19,7 @@ import { AnimatedNumber } from "@/components/animated-number";
 import { FormDots } from "@/components/sparkline";
 import { IconCoins, IconFlag, IconFlame, IconGolf, IconTrophy } from "@/components/icons";
 import { PageTitle, Panel, Stat, cls } from "@/components/ui";
-import { pounds } from "@/lib/format";
+import { fmtToPar, pounds } from "@/lib/format";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; userId: string }> }): Promise<Metadata> {
   const { userId } = await params;
@@ -134,9 +134,14 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                   <Stat label="Wins" value={<AnimatedNumber value={golf.wins} />} tone={golf.wins > 0 ? "good" : undefined} />
                   <div className="col-span-3 flex items-end justify-between gap-3">
                     <div className="text-sm">
-                      <span className="text-ink-3">Best </span>
-                      <span className="display text-xl font-bold tnum">{golf.best?.points ?? "–"}</span>
-                      {golf.best ? <span className="text-ink-3"> · {golf.best.title}</span> : null}
+                      <span className="text-ink-3">Best round </span>
+                      <span className="display text-xl font-bold tnum">{golf.bestScore ? fmtToPar(golf.bestScore.toPar) : "–"}</span>
+                      {golf.bestScore ? (
+                        <span className="text-ink-3">
+                          {" "}
+                          · {golf.bestScore.gross} at {golf.bestScore.title}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="flex items-end gap-1 h-8" aria-label={`Last rounds: ${golf.recent.join(", ")} points`}>
                       {golf.recent.map((p, i) => (

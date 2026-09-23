@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { holeResult, type HoleResult } from "@/domain/golf-highlights";
 import { stablefordPoints, type Hole } from "@/domain/stableford";
 import { cls } from "@/components/ui";
+import { fmtToPar } from "@/lib/format";
 import { FlagEmblem, TeeMarker } from "./marks";
 
 /**
@@ -53,6 +54,10 @@ export function Scorecard(p: ScorecardProps) {
   const blocks = n === 18 ? [{ label: "Out", from: 0, to: 9 }, { label: "In", from: 9, to: 18 }] : [{ label: "Tot", from: 0, to: n }];
   const used = new Set<Mark>(p.holes.map((h, i) => markOf(p.strokes[i] === null ? null : holeResult(p.strokes[i]!, h.par))).filter((m) => m !== "par" && m !== "none"));
   const played = p.strokes.filter((x) => x !== null).length;
+  // The total a golfer quotes: strokes against the par of the holes they played, so a card left
+  // unfinished reads "thru 12, +6" rather than a flattering number against the full par.
+  const gross = p.strokes.reduce<number>((a, x) => a + (x ?? 0), 0);
+  const parPlayed = p.holes.reduce((a, h, i) => a + (p.strokes[i] === null ? 0 : h.par), 0);
 
   return (
     <article className="rounded-md overflow-hidden shadow-[var(--shadow)] ring-1 ring-black/20" style={{ background: "var(--gf-paper)", color: "var(--gf-paper-ink)" }} aria-label={`Scorecard, ${p.course}`}>
@@ -123,6 +128,20 @@ export function Scorecard(p: ScorecardProps) {
             </div>
           );
         })}
+
+        {played ? (
+          <div className="flex items-center justify-between gap-3 rounded-sm px-3 py-2" style={{ border: "1px solid var(--gf-paper-line)", background: "var(--gf-paper-2)" }} aria-label={`Total: ${gross} strokes, ${fmtToPar(gross - parPlayed)}${played < n ? `, thru ${played}` : ""}`}>
+            <div className="leading-tight">
+              <div className="font-mono text-[9px] tracking-[0.2em] uppercase font-semibold" style={{ color: "var(--gf-paper-ink-2)" }}>
+                Total{played < n ? ` · thru ${played}` : ""}
+              </div>
+              <div className="text-sm mt-0.5">
+                <strong className="tabular-nums">{gross}</strong> <span style={{ color: "var(--gf-paper-ink-2)" }}>strokes · par {parPlayed}</span>
+              </div>
+            </div>
+            <div className="display text-[40px] font-extrabold leading-none tabular-nums">{fmtToPar(gross - parPlayed)}</div>
+          </div>
+        ) : null}
 
         {/* A key for the marks: identity is never shape-or-colour alone without saying what it means. */}
         {used.size ? (

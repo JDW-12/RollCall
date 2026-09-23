@@ -12,6 +12,10 @@ export type GolfStats = {
   rounds: number;
   avg: number | null;
   best: { points: number; title: string } | null;
+  /** Lowest score against par over complete rounds: what a golfer means by their best round. */
+  bestScore: { gross: number; par: number; toPar: number; title: string } | null;
+  /** Average strokes against par over complete rounds, to one decimal. */
+  avgToPar: number | null;
   wins: number;
   /** Points from the last five complete rounds, oldest first. */
   recent: number[];
@@ -28,7 +32,7 @@ const NO_RESULTS: Record<HoleResult, number> = { holeInOne: 0, albatross: 0, eag
 
 export function golfStats(rounds: Round[], userId: string): GolfStats {
   const ordered = [...rounds].sort((a, b) => a.startsAt - b.startsAt);
-  const mine: { points: number; title: string }[] = [];
+  const mine: { points: number; title: string; gross: number; par: number }[] = [];
   let wins = 0;
   let handicap: number | null = null;
   const results = { ...NO_RESULTS };
@@ -48,16 +52,19 @@ export function golfStats(rounds: Round[], userId: string): GolfStats {
     const me = complete.find((t) => t.userId === userId);
     if (r.card.handicaps[userId] !== undefined) handicap = r.card.handicaps[userId];
     if (!me) continue;
-    mine.push({ points: me.points, title: r.title });
+    mine.push({ points: me.points, title: r.title, gross: me.gross!, par: r.card.holes.reduce((a, h) => a + h.par, 0) });
     const top = Math.max(...complete.map((t) => t.points));
     if (me.points === top) wins++;
   }
   const n = mine.length;
-  const best = mine.reduce<{ points: number; title: string } | null>((b, x) => (b === null || x.points > b.points ? x : b), null);
+  const best = mine.reduce<{ points: number; title: string } | null>((b, x) => (b === null || x.points > b.points ? { points: x.points, title: x.title } : b), null);
+  const bestScore = mine.reduce<GolfStats["bestScore"]>((b, x) => (b === null || x.gross - x.par < b.toPar ? { gross: x.gross, par: x.par, toPar: x.gross - x.par, title: x.title } : b), null);
   return {
     rounds: n,
     avg: n ? Math.round((mine.reduce((a, x) => a + x.points, 0) / n) * 10) / 10 : null,
     best,
+    bestScore,
+    avgToPar: n ? Math.round((mine.reduce((a, x) => a + x.gross - x.par, 0) / n) * 10) / 10 : null,
     wins,
     recent: mine.slice(-5).map((x) => x.points),
     handicap,

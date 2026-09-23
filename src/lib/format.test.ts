@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromLocalInput, toLocalInput, pounds, parsePounds, fmtAgo } from "./format";
+import { fromLocalInput, toLocalInput, pounds, parsePounds, fmtAgo, fmtToPar } from "./format";
 
 describe("London time round-trips", () => {
   it("handles BST and GMT", () => {
@@ -45,5 +45,14 @@ describe("fmtAgo", () => {
 
   it("falls back to a date once it is over a month old", () => {
     expect(ago(60 * 24 * 60 * 60_000)).toMatch(/Jul/);
+  });
+});
+
+describe("fmtToPar", () => {
+  it("writes over, level and under par the way golfers do", () => {
+    expect(fmtToPar(22)).toBe("+22");
+    expect(fmtToPar(0)).toBe("E");
+    expect(fmtToPar(-3)).toBe("−3");
+    expect(fmtToPar(6.6)).toBe("+7");
   });
 });

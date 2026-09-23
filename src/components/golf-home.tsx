@@ -2,12 +2,12 @@ import type { Crew } from "@/db/schema";
 import { sportOf } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { golfPlayers, type GolfPlayer } from "@/lib/golf-card";
-import { fmtDay } from "@/lib/format";
+import { fmtDay, fmtToPar } from "@/lib/format";
 import { PlayerCard } from "./player-card";
 import { Eyebrow, LinkButton, Panel } from "./ui";
 import type { CardStats } from "@/domain/table";
 import { Scorecard, ordinal } from "./golf/scorecard";
-import { FormChart, toPar } from "./golf/form-chart";
+import { FormChart } from "./golf/form-chart";
 import { LeaderBoard } from "./golf/leader-board";
 
 /** The golf card ignores the attendance stats, but the component still takes a row of them. */
@@ -103,7 +103,7 @@ function Form({ me }: { me: GolfPlayer }) {
             {me.form.length > 1 ? (
               <>
                 <br />
-                Avg {toPar(avg)} · best {toPar(best)}
+                Avg {fmtToPar(avg)} · best {fmtToPar(best)}
               </>
             ) : null}
           </div>
@@ -111,7 +111,7 @@ function Form({ me }: { me: GolfPlayer }) {
         <div className="text-right leading-none shrink-0 whitespace-nowrap">
           <div className="display text-3xl font-extrabold">{latest.gross}</div>
           <div className="eyebrow mt-0.5">
-            {toPar(latest.gross - latest.par)} · par {latest.par}
+            {fmtToPar(latest.gross - latest.par)} · par {latest.par}
           </div>
         </div>
       </div>

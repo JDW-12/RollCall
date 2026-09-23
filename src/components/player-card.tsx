@@ -1,6 +1,6 @@
 import type { CardStats } from "@/domain/table";
 import type { RatingCategory } from "@/domain/sports";
-import { initials } from "@/lib/format";
+import { fmtToPar, initials } from "@/lib/format";
 import { SportIcon } from "./icons";
 import { Tilt } from "./tilt";
 import { FlagEmblem } from "./golf/marks";
@@ -35,7 +35,8 @@ function ground(tier: Tier, hue: number): string {
  * Golf crews swap the six slots for the numbers a golfer cares about, and rate the card on their
  * scoring (see golfRating) rather than on turning up.
  */
-export type GolfCardStats = { handicap: number | null; avg: number | null; best: number | null; birdies: number; wins: number; rounds: number; overall: number };
+/** avgToPar and bestToPar are strokes against par over complete rounds: +7 reads as a golf score, 42 would read as one too. */
+export type GolfCardStats = { handicap: number | null; avgToPar: number | null; bestToPar: number | null; birdies: number; wins: number; rounds: number; overall: number };
 
 /** Golf's bottom tier: nobody on a golf card is a sick note, they just haven't found their swing yet. */
 const GOLF_TIER_LABEL: Record<Tier, string> = { elite: "Green jacket", gold: "Gold", silver: "Silver", bronze: "Hacker" };
@@ -55,11 +56,11 @@ function golfGround(tier: Tier, hue: number): string {
   }
 }
 
-export function golfSlots(g: GolfCardStats, points: number): [string, number][] {
+export function golfSlots(g: GolfCardStats, points: number): [string, string | number][] {
   return [
     ["HCP", g.handicap ?? 0],
-    ["AVG", Math.round(g.avg ?? 0)],
-    ["BST", g.best ?? 0],
+    ["AVG", g.avgToPar === null ? "–" : fmtToPar(g.avgToPar)],
+    ["BST", g.bestToPar === null ? "–" : fmtToPar(g.bestToPar)],
     ["BRD", Math.min(99, g.birdies)],
     ["WIN", Math.min(99, g.wins)],
     ["PTS", Math.max(0, Math.min(999, points))],
@@ -91,7 +92,7 @@ export function PlayerCard({ name, hue, crewName, sport, sportLabel, card, rank,
   const tier = tierOf(overall);
   const jacket = !!golf && tier === "elite";
   const dark = jacket ? "#f6efd2" : `oklch(0.22 0.05 ${hue})`;
-  const stats: [string, number][] = golf ? golfSlots(golf, points) : [
+  const stats: [string, string | number][] = golf ? golfSlots(golf, points) : [
     ["TRN", card.turnsUp],
     ["FRM", card.form],
     [categories[0]?.stat ?? "MOT", card.votes],

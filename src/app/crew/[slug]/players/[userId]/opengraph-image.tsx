@@ -53,7 +53,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const avatarInk = `hsl(${h} 60% 88%)`;
 
   const label = { fontSize: 22, letterSpacing: 4, textTransform: "uppercase" as const, fontWeight: 700 };
-  const stats: [string, number][] = golf ? golfSlots(golf.card, golf.row.points) : [
+  const stats: [string, string | number][] = golf ? golfSlots(golf.card, golf.row.points) : [
     ["TRN", row.card.turnsUp],
     ["FRM", row.card.form],
     [cats[0].stat, row.card.votes],

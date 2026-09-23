@@ -39,7 +39,7 @@ export async function golfPlayers(crew: Crew) {
     const row = table[idx];
     const g = golfStats(rounds, userId);
     const birdies = g.results.birdie + g.results.eagle + g.results.albatross + g.results.holeInOne;
-    const card: GolfCardStats = { handicap: g.handicap, avg: g.avg, best: g.best?.points ?? null, birdies, wins: g.wins, rounds: g.rounds, overall: golfRating(g.avg, g.rounds) };
+    const card: GolfCardStats = { handicap: g.handicap, avgToPar: g.avgToPar, bestToPar: g.bestScore?.toPar ?? null, birdies, wins: g.wins, rounds: g.rounds, overall: golfRating(g.avg, g.rounds) };
     let latest: GolfPlayer["latest"] = null;
     const round = row.last ? rounds.find((r) => r.sessionId === row.last!.sessionId) : undefined;
     if (round) {

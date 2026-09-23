@@ -33,6 +33,13 @@ export function VenueSearch({ defaultValue = "", hint, label = "Venue", placehol
   const abort = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // Keep the option picked with the arrow keys in view once the list scrolls.
+  useEffect(() => {
+    if (active < 0) return;
+    (listRef.current?.children[active] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
+  }, [active]);
 
   useEffect(() => {
     const term = value.trim();
@@ -131,7 +138,14 @@ export function VenueSearch({ defaultValue = "", hint, label = "Venue", placehol
         <span className="text-xs text-ink-3">{hint}</span>
       ) : null}
       {open && hits.length ? (
-        <ul id={listId} role="listbox" className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-30 mt-1 rounded-md border border-line bg-panel shadow-lg overflow-hidden anim-rise">
+        <ul
+          ref={listRef}
+          id={listId}
+          role="listbox"
+          // Scrolls under the pointer without scrolling the page, and grabbing the scrollbar doesn't blur the input and close the list.
+          onMouseDown={(e) => e.preventDefault()}
+          className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-30 mt-1 rounded-md border border-line bg-panel shadow-lg max-h-[min(20rem,55vh)] overflow-y-auto overscroll-contain anim-rise"
+        >
           {hits.map((h, i) => (
             <li
               key={`${h.course ? `${h.course.source}:${h.course.ref}` : "place"}|${h.name}|${h.address}`}
