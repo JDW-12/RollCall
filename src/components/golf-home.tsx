@@ -7,7 +7,7 @@ import { PlayerCard } from "./player-card";
 import { Eyebrow, LinkButton, Panel } from "./ui";
 import type { CardStats } from "@/domain/table";
 import { Scorecard, ordinal } from "./golf/scorecard";
-import { FormChart } from "./golf/form-chart";
+import { FormChart, toPar } from "./golf/form-chart";
 import { LeaderBoard } from "./golf/leader-board";
 
 /** The golf card ignores the attendance stats, but the component still takes a row of them. */
@@ -83,19 +83,36 @@ export async function GolfHome({ crew, myId }: { crew: Crew; myId: string }) {
   );
 }
 
-/** Form as a stat tile: the headline average, the best, and the last five rounds as flagsticks. */
+/**
+ * Form as a stat tile: what you went round in last time, against par, then the last five rounds as
+ * flagsticks. Strokes, not points: this is the golf, the leader board is where the points live.
+ */
 function Form({ me }: { me: GolfPlayer }) {
   if (!me.form.length) return null;
+  const latest = me.form.at(-1)!;
+  const diffs = me.form.map((r) => r.gross - r.par);
+  const avg = Math.round(diffs.reduce((a, d) => a + d, 0) / diffs.length);
+  const best = Math.min(...diffs);
   return (
     <Panel className="p-3 flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2">
         <div>
           <div className="eyebrow">Form</div>
-          <div className="text-[11px] text-ink-3">Stableford, last {me.form.length === 1 ? "round" : `${me.form.length} rounds`}</div>
+          <div className="text-[11px] text-ink-3 leading-snug">
+            Your score, last {me.form.length === 1 ? "round" : `${me.form.length} rounds`}
+            {me.form.length > 1 ? (
+              <>
+                <br />
+                Avg {toPar(avg)} · best {toPar(best)}
+              </>
+            ) : null}
+          </div>
         </div>
-        <div className="text-right leading-none">
-          <div className="display text-3xl font-extrabold">{me.card.avg?.toFixed(1) ?? "–"}</div>
-          <div className="eyebrow mt-0.5">avg{me.card.best !== null ? ` · best ${me.card.best}` : ""}</div>
+        <div className="text-right leading-none shrink-0 whitespace-nowrap">
+          <div className="display text-3xl font-extrabold">{latest.gross}</div>
+          <div className="eyebrow mt-0.5">
+            {toPar(latest.gross - latest.par)} · par {latest.par}
+          </div>
         </div>
       </div>
       <FormChart rounds={me.form} />

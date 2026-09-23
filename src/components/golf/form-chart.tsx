@@ -1,68 +1,87 @@
 /**
- * Form: Stableford points from a player's last five rounds, as flagsticks on a common baseline.
+ * Form: what a player actually went round in over their last five completed rounds, as flagsticks
+ * standing on the par line. Each bar is strokes over par (or under, hanging below the line), so a 9
+ * and an 18 sit on the same scale; the latest round's label gives the gross score golfers quote.
  *
  * An emphasis chart: the latest round in the fairway accent with its flag up, earlier rounds in the
- * de-emphasis grey (both validated against each theme's panel). One baseline, 4px rounded tops, a solid
- * hairline at 36, the par score for 18 holes, drawn only when every round shown was an 18. Only the
- * latest value is labelled; every bar carries a native tooltip, and a table view sits alongside for
- * screen readers. A single series, so no legend: the title says what it is.
+ * de-emphasis grey (both validated against each theme's panel). One baseline (par), 4px rounded data
+ * ends, a solid hairline for par. Only the latest value is labelled; every bar carries a native
+ * tooltip, and a table view sits alongside for screen readers. A single series, so no legend.
  */
 
-export type FormRound = { sessionId: string; startsAt: number; course: string; stableford: number; holes: number };
+export type FormRound = { sessionId: string; startsAt: number; course: string; gross: number; par: number; stableford: number; holes: number };
 
 const W = 300;
 const H = 132;
-const PAD = { l: 8, r: 8, t: 22, b: 22 };
+const PAD = { l: 8, r: 8, t: 24, b: 22 };
 const BAR = 18;
 
-function barPath(x: number, top: number, w: number, bottom: number, r = 4): string {
-  const rr = Math.min(r, (bottom - top) / 2, w / 2);
-  return `M${x} ${bottom} V${top + rr} Q${x} ${top} ${x + rr} ${top} H${x + w - rr} Q${x + w} ${top} ${x + w} ${top + rr} V${bottom} Z`;
+/** Golf's way of writing a score against par: +16, E, −2. */
+export function toPar(n: number): string {
+  if (n === 0) return "E";
+  return n > 0 ? `+${n}` : `−${-n}`;
+}
+
+/** A bar from the baseline to its value, rounded only at the data end (the top, or the bottom when under par). */
+function barPath(x: number, base: number, end: number, w: number, r = 4): string {
+  const h = Math.abs(base - end);
+  if (h < 0.5) return `M${x} ${base - 1} H${x + w} V${base + 1} H${x} Z`;
+  const rr = Math.min(r, h / 2, w / 2);
+  const d = end < base ? 1 : -1; // 1 = bar grows up
+  return `M${x} ${base} V${end + d * rr} Q${x} ${end} ${x + rr} ${end} H${x + w - rr} Q${x + w} ${end} ${x + w} ${end + d * rr} V${base} Z`;
 }
 
 const short = (ms: number) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }).format(new Date(ms));
 
+function describe(r: FormRound): string {
+  return `${r.course}, ${short(r.startsAt)}: ${r.gross} (${toPar(r.gross - r.par)}), par ${r.par}${r.holes === 9 ? ", 9 holes" : ""}`;
+}
+
 export function FormChart({ rounds }: { rounds: FormRound[] }) {
   if (!rounds.length) return null;
-  const allEighteen = rounds.every((r) => r.holes === 18);
-  const max = Math.max(allEighteen ? 40 : 0, ...rounds.map((r) => r.stableford), 10) + 2;
-  const plotW = W - PAD.l - PAD.r;
-  const base = H - PAD.b;
-  const y = (v: number) => base - (v / max) * (base - PAD.t);
-  const slot = plotW / 5;
+  const diffs = rounds.map((r) => r.gross - r.par);
+  // Par sits at the bottom unless someone's gone under it; keep a minimum span so one round isn't a wall.
+  const hi = Math.max(10, ...diffs);
+  const lo = Math.min(0, ...diffs);
+  const k = (H - PAD.b - PAD.t) / (hi - lo);
+  const y = (v: number) => PAD.t + (hi - v) * k;
+  const base = y(0);
+  const slot = (W - PAD.l - PAD.r) / 5;
   // Right-aligned so the latest round always sits in the same place, however many there are.
   const x0 = PAD.l + slot * (5 - rounds.length);
   const last = rounds.length - 1;
 
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto block" role="img" aria-label={`Stableford points, last ${rounds.length} rounds: ${rounds.map((r) => `${r.course} ${short(r.startsAt)}, ${r.stableford}`).join("; ")}`}>
-        {allEighteen ? (
-          <g>
-            <line x1={PAD.l} x2={W - PAD.r} y1={y(36)} y2={y(36)} style={{ stroke: "var(--gf-grid)", strokeWidth: 1 }} />
-            <text x={PAD.l} y={y(36) - 4} className="font-mono" style={{ fill: "var(--ink-3)", fontSize: 8, letterSpacing: 1 }}>
-              PAR 36
-            </text>
-          </g>
-        ) : null}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto block" role="img" aria-label={`Score against par, last ${rounds.length} rounds: ${rounds.map(describe).join("; ")}`}>
         <line x1={PAD.l} x2={W - PAD.r} y1={base} y2={base} style={{ stroke: "var(--gf-grid)", strokeWidth: 1 }} />
+        <text x={PAD.l} y={base - 4} className="font-mono" style={{ fill: "var(--ink-3)", fontSize: 8, letterSpacing: 1 }}>
+          PAR
+        </text>
         {rounds.map((r, i) => {
           const cx = x0 + slot * i + slot / 2;
-          const top = y(r.stableford);
+          const diff = diffs[i];
+          const end = y(diff);
           const now = i === last;
+          const top = Math.min(end, base);
           return (
             <g key={r.sessionId}>
-              <title>{`${r.course}, ${short(r.startsAt)}: ${r.stableford} Stableford points${r.holes === 9 ? " (9 holes)" : ""}`}</title>
+              <title>{describe(r)}</title>
               {/* Hit area wider than the bar, so the tooltip isn't a pinpoint target. */}
-              <rect x={cx - slot / 2} y={PAD.t - 12} width={slot} height={base - PAD.t + 12} fill="transparent" />
-              <path d={barPath(cx - BAR / 2, top, BAR, base)} style={{ fill: now ? "var(--gf-bar-now)" : "var(--gf-bar)" }} />
+              <rect x={cx - slot / 2} y={PAD.t - 14} width={slot} height={H - PAD.b - PAD.t + 14} fill="transparent" />
+              <path d={barPath(cx - BAR / 2, base, end, BAR)} style={{ fill: now ? "var(--gf-bar-now)" : "var(--gf-bar)" }} />
               {now ? (
                 <g>
                   {/* The latest round flies the flag: a pole off the top of its bar and a pennant. */}
                   <rect x={cx - 0.6} y={top - 16} width={1.2} height={16} style={{ fill: "var(--ink-2)" }} />
                   <path d={`M${cx + 0.6} ${top - 16} l10 3.4 l-10 3.4 Z`} style={{ fill: "var(--gf-flag)" }} className="gf-flag" />
-                  <text x={cx - 6} y={top - 5} textAnchor="end" className="display" style={{ fill: "var(--ink)", fontSize: 15, fontWeight: 800 }}>
-                    {r.stableford}
+                  <text x={cx - 6} y={top - 5} textAnchor="end" style={{ fill: "var(--ink)" }}>
+                    <tspan className="display" style={{ fontSize: 15, fontWeight: 800 }}>
+                      {r.gross}
+                    </tspan>
+                    <tspan className="font-mono" dx={3} style={{ fill: "var(--ink-2)", fontSize: 9 }}>
+                      {toPar(diff)}
+                    </tspan>
                   </text>
                 </g>
               ) : null}
@@ -74,12 +93,14 @@ export function FormChart({ rounds }: { rounds: FormRound[] }) {
         })}
       </svg>
       <table className="sr-only">
-        <caption>Stableford points by round</caption>
+        <caption>Score by round</caption>
         <thead>
           <tr>
             <th>Round</th>
             <th>Date</th>
-            <th>Points</th>
+            <th>Score</th>
+            <th>Par</th>
+            <th>To par</th>
           </tr>
         </thead>
         <tbody>
@@ -87,7 +108,9 @@ export function FormChart({ rounds }: { rounds: FormRound[] }) {
             <tr key={r.sessionId}>
               <td>{r.course}</td>
               <td>{short(r.startsAt)}</td>
-              <td>{r.stableford}</td>
+              <td>{r.gross}</td>
+              <td>{r.par}</td>
+              <td>{toPar(r.gross - r.par)}</td>
             </tr>
           ))}
         </tbody>

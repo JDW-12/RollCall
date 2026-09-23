@@ -103,10 +103,11 @@ const mine = p.locator("details", { hasText: "Your card" }).first();
 if ((await mine.getAttribute("open")) === null) await mine.locator("summary").click();
 await mine.getByRole("button", { name: "Submit round" }).click();
 await p.waitForURL(/table\?round=/);
+const boardUrl = p.url();
 
 for (const theme of ["dark", "light"]) {
   await p.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
-  await p.goto(p.url());
+  await p.goto(boardUrl);
   await p.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
   await p.waitForTimeout(400);
   await p.screenshot({ path: `${out}/board-${theme}.png`, fullPage: true });

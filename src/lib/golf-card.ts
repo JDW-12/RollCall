@@ -5,6 +5,7 @@ import { golfStats } from "@/domain/golf-stats";
 import { golfRating, golfRoundSummary, golfTable, type GolfRoundRow, type GolfRoundSummary, type GolfTableRow } from "@/domain/golf-table";
 import type { GolfCardStats } from "@/components/player-card";
 import { stablefordTotals, type Hole } from "@/domain/stableford";
+import type { FormRound } from "@/components/golf/form-chart";
 import { golfLeaderboardData } from "./queries";
 
 export type GolfPlayer = {
@@ -15,7 +16,7 @@ export type GolfPlayer = {
   /** Their most recent round and their line in it, with where they finished, plus the card itself. */
   latest: { round: GolfRoundSummary; mine: GolfRoundRow; place: number; tee: string; holes: Hole[]; strokes: (number | null)[]; handicap: number } | null;
   /** Their last five completed rounds, oldest first, for the form chart. Same rule as the card's stats. */
-  form: { sessionId: string; startsAt: number; course: string; stableford: number; holes: number }[];
+  form: FormRound[];
 };
 
 /**
@@ -58,8 +59,10 @@ export async function golfPlayers(crew: Crew) {
     const form = [...rounds]
       .sort((a, b) => a.startsAt - b.startsAt)
       .flatMap((r) => {
-        const t = stablefordTotals(r.card).find((x) => x.userId === userId && x.gross !== null);
-        return t ? [{ sessionId: r.sessionId, startsAt: r.startsAt, course: r.card.course?.name ?? r.title, stableford: t.points, holes: r.card.holes.length }] : [];
+        const t = stablefordTotals(r.card).find((x) => x.userId === userId);
+        if (!t || t.gross === null) return [];
+        const par = r.card.holes.reduce((a, h) => a + h.par, 0);
+        return [{ sessionId: r.sessionId, startsAt: r.startsAt, course: r.card.course?.name ?? r.title, gross: t.gross, par, stableford: t.points, holes: r.card.holes.length }];
       })
       .slice(-5);
     return { card, row, rank: idx + 1, latest, form };

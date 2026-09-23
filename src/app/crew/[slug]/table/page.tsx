@@ -6,6 +6,7 @@ import { getCrewTable, getSessionBundle, golfLeaderboardData, listSessions } fro
 import { currentRound, golfRoundSummary, golfTable } from "@/domain/golf-table";
 import { fmtDay } from "@/lib/format";
 import { LeaderBoard } from "@/components/golf/leader-board";
+import { PointsExplained } from "@/components/golf/points-explained";
 import type { RatingCategory } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { POINTS, turnUpRate, type TableRow } from "@/domain/table";
@@ -272,7 +273,7 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
   return (
     <CrewShell crew={crew} user={user} active="table">
       <PageTitle eyebrow={crew.seasonName} title="Leaderboard" action={<LinkButton href={`/crew/${crew.slug}/season`} variant="secondary" className="min-h-9 px-3 text-sm">Season awards</LinkButton>}>
-        Your Stableford points plus the crew&apos;s votes{scoring ? ` (${scoring})` : ""}. Nothing for turning up.
+        Your Stableford points plus the crew&apos;s votes{scoring ? ` (${scoring})` : ""}. Nothing for turning up. <a href="#points-explained" className="underline underline-offset-2">Points explained</a>
       </PageTitle>
 
       {summary ? (
@@ -347,7 +348,7 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
           <LeaderBoard
             label="Season"
             title="Season"
-            columns={["Rds", "Avg", "Best"]}
+            columns={["Stbl", "Vote"]}
             rows={rows.flatMap((r) => {
               const m = name(r.userId);
               if (!m) return [];
@@ -357,8 +358,8 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
                   href: `/crew/${crew.slug}/players/${r.userId}`,
                   name: m.name,
                   you: r.userId === user.id,
-                  sub: r.votePoints ? `${r.stableford} Stableford + ${r.votePoints} votes` : `${r.stableford} Stableford`,
-                  cells: [r.rounds, r.avg === null ? "–" : Math.round(r.avg), r.best ?? "–"],
+                  sub: r.rounds ? `${r.rounds} ${r.rounds === 1 ? "round" : "rounds"} · ${Math.round(r.points / r.rounds)} pts a round` : "No rounds yet",
+                  cells: [r.stableford, r.votePoints ? `+${r.votePoints}` : "–"],
                   points: r.points,
                 },
               ];
@@ -366,6 +367,10 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
           />
         </div>
       )}
+
+      <div className="mt-6 anim-rise-3">
+        <PointsExplained categories={cats} />
+      </div>
     </CrewShell>
   );
 }
