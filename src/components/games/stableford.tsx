@@ -2,14 +2,14 @@ import type { Game } from "@/db/schema";
 import { defaultHoles, stablefordTotals, type StablefordCard } from "@/domain/stableford";
 import type { Member } from "@/lib/queries";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Panel, cls } from "@/components/ui";
+import { LinkButton, Panel, cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
 import { RESULT_LABEL, roundAwards, roundHighlights } from "@/domain/golf-highlights";
 import { CoursePicker } from "./course-picker";
 import { HoleScorer } from "./hole-scorer";
 import { FlagEmblem, TeeMarker } from "@/components/golf/marks";
 
-export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId, providerOn = false, scanOn = false }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string; providerOn?: boolean; scanOn?: boolean }) {
+export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId, providerOn = false, scanOn = false, liveHref }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string; providerOn?: boolean; scanOn?: boolean; liveHref?: string }) {
   const card: StablefordCard = game ? (JSON.parse(game.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
   const totals = stablefordTotals(card);
   const highlights = roundHighlights(card);
@@ -40,6 +40,12 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
           {card.holes.length} holes · par {card.holes.reduce((a, h) => a + h.par, 0)}
         </span>
       </div>
+      {/* Play mode: GPS yardages and hole-by-hole scoring, for anyone in the round once there's a course. */}
+      {liveHref && game && card.course && playerIds.includes(myId) ? (
+        <LinkButton href={liveHref} className="min-h-12 text-base">
+          Play live · GPS yardages
+        </LinkButton>
+      ) : null}
       {card.course ? null : isOrganiser ? (
         <p className="text-sm text-ink-2 -mt-2">Using a standard par-72 layout. Pick the real course below so the points are right.</p>
       ) : null}

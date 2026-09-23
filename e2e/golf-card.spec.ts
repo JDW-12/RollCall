@@ -139,6 +139,18 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await org.getByRole("link", { name: "Your dashboard" }).click();
   await expect(org).toHaveURL(/\/home$/);
 
+  // Play mode: opens on the first hole without a score, and saving a hole moves on and lands on the card.
+  await org.goto(sessionUrl);
+  await org.getByRole("link", { name: /Play live/ }).click();
+  await expect(org).toHaveURL(/\/live$/);
+  await expect(org.getByText("Hole 2", { exact: true })).toBeVisible();
+  await expect(org.getByText("Satellite map isn't switched on yet", { exact: false })).toBeVisible();
+  await org.getByRole("button", { name: "Par 4, next" }).click();
+  await expect(org.getByText("Hole 3", { exact: true })).toBeVisible();
+  await expect(org.getByLabel("Strokes on hole 3")).toHaveText("2");
+  await org.getByRole("link", { name: "← Card" }).click();
+  await expect(org.getByText("· 4 holes")).toBeVisible();
+
   // A later round: the venue finder on the session form searches the course library, and picking the
   // course there loads the card onto the session with no picker step.
   await org.goto(crewUrl);

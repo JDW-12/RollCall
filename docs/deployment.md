@@ -15,6 +15,7 @@
 | `FOUNDER_EMAILS` | Who can open `/founder`. |
 | `GOOGLE_MAPS_API_KEY` | Venue finder on the session form via Google Places Autocomplete (New). Empty uses Photon (OpenStreetMap, no key). |
 | `GOLF_COURSE_API_KEY` | golfcourseapi.com key so golf course search reaches beyond our own library. |
+| `MAPTILER_KEY` | MapTiler key for the satellite map in golf play mode. Free tier; restrict it to the production domain in MapTiler. Without it, GPS yardages still work, just no map. |
 | `ANTHROPIC_API_KEY` | Scorecard scanning (photo of the paper card). Empty hides the option. |
 
 Migrations run automatically on first database connection. To run them explicitly: `npm run db:migrate`.
@@ -66,6 +67,7 @@ Payments are destination charges to the organiser's account with Roll Call's fee
 ## Venue finder and golf cards
 - The session form's venue field looks places up as you type (`/api/places`, members only). With `GOOGLE_MAPS_API_KEY` it uses Places Autocomplete (New) restricted to GB and biased to London; restrict the key to that API in Google Cloud. Without a key it uses Photon, which is fine for a pilot but has no uptime promise.
 - Golf sessions have a course picker: search our `courses` library first, then golfcourseapi.com when `GOLF_COURSE_API_KEY` is set (UK results only). Using a provider card copies it into the library. Organisers can also scan a photo of the card (`ANTHROPIC_API_KEY`) or type the par and stroke-index rows; both can be saved to the library. Corrections made from "Fix pars and stroke indexes" update the library copy, so the next crew gets the right card.
+- Golf play mode (`/crew/<slug>/s/<id>/live`): GPS front, middle and back of the green, a satellite map of the hole (`MAPTILER_KEY`), tap-to-measure, and hole-by-hole scoring. Hole and green positions come from OpenStreetMap: the first time a library course is played, it is located from its postcode (postcodes.io) or name (Nominatim), its `golf=hole` and `golf=green` features are read from the Overpass API, and the result is cached on `courses.geo`. A course with no mapped holes is retried after 14 days. Courses the OSM community has mapped get full yardages; the rest get the map and tap-to-measure.
 
 ## Reminders
 `vercel.json` schedules two jobs. `/api/cron/reminders` runs daily at 09:00 UTC (Hobby plans allow one daily cron; Pro can run it hourly). The job emails members who haven't answered a session whose commit-by moment is within 24 hours, and the organiser a headcount, once per session. It needs `CRON_SECRET` and `RESEND_API_KEY`. Members without an email are skipped; the organiser's "Nudge the stragglers" button covers them through WhatsApp.

@@ -152,6 +152,29 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
 }
 
 /**
+ * Live scoring: one hole's gross for the player holding the phone, saved as they walk off the green.
+ * Same rules as the full card (you, in the round), just one number. Null clears the hole.
+ */
+export async function saveHoleScore(sessionId: string, holeIndex: number, strokes: number | null): Promise<ActionState> {
+  return act(async () => {
+    const { bundle, ctx } = await loadForGame(sessionId, false);
+    const game = bundle.games.find((g) => g.kind === "stableford");
+    if (!game) uiError("There's no scorecard on this round yet.");
+    const card = JSON.parse(game.data) as StablefordCard;
+    const me = ctx.user.id;
+    if (!bundle.rsvps.some((r) => r.userId === me && r.status === "in")) uiError("You're not in this round.");
+    if (!Number.isInteger(holeIndex) || holeIndex < 0 || holeIndex >= card.holes.length) uiError("That hole isn't on this card.");
+    const row = [...(card.strokes[me] ?? card.holes.map(() => null))];
+    while (row.length < card.holes.length) row.push(null);
+    row[holeIndex] = strokes === null ? null : Math.max(1, Math.min(15, Math.round(strokes)));
+    card.strokes[me] = row;
+    await upsertGame(sessionId, "stableford", card);
+    revalidatePath(`/crew/${ctx.crew.slug}`, "layout");
+    return { ok: true };
+  });
+}
+
+/**
  * Golf: organiser picks the course card. From the library (ref = course id), from the provider
  * (ref = provider reference, re-fetched server side), or typed / scanned holes sent as JSON, which
  * can also be saved to the library so the next crew finds them.

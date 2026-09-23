@@ -78,6 +78,13 @@
       "when": 1790187808230,
       "tag": "0010_session_invitees",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790194072700,
+      "tag": "0011_course_geo",
+      "breakpoints": true
     }
   ]
 }

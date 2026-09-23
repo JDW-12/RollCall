@@ -411,6 +411,11 @@ export const courses = sqliteTable(
     updatedAt: ts("updated_at").notNull(),
     /** How many sessions have used this card. Ranks search results. */
     uses: integer("uses").notNull().default(0),
+    /**
+     * Hole-by-hole geometry for the GPS rangefinder (domain/course-geo CourseGeo as JSON): tees, green
+     * outlines and hole lines from OpenStreetMap, fetched on first use and cached. Null until then.
+     */
+    geo: text("geo"),
   },
   (t) => [index("courses_name_idx").on(t.name), uniqueIndex("courses_external_idx").on(t.externalId)],
 );

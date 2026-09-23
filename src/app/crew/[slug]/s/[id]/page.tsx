@@ -442,7 +442,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
           <Eyebrow>Side games</Eyebrow>
           {sport.games.includes("teams") ? <TeamsPanel sessionId={session.id} game={game("teams")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
           {sport.games.includes("americano") ? <AmericanoPanel sessionId={session.id} game={game("americano")} members={members} isOrganiser={isOrganiser} inCount={inRows.length} /> : null}
-          {sport.games.includes("stableford") ? <StablefordPanel sessionId={session.id} game={game("stableford")} members={members} isOrganiser={isOrganiser} playerIds={inRows.map((r) => r.userId)} myId={user.id} providerOn={courseApiConfigured()} scanOn={scanConfigured()} /> : null}
+          {sport.games.includes("stableford") ? <StablefordPanel sessionId={session.id} game={game("stableford")} members={members} isOrganiser={isOrganiser} playerIds={inRows.map((r) => r.userId)} myId={user.id} providerOn={courseApiConfigured()} scanOn={scanConfigured()} liveHref={`/crew/${crew.slug}/s/${session.id}/live`} /> : null}
           {sport.games.includes("predictor") ? <PredictorPanel sessionId={session.id} game={game("predictor")} entries={entries} members={members} isOrganiser={isOrganiser} myId={user.id} locksAt={session.startsAt.getTime()} /> : null}
         </section>
       ) : null}
