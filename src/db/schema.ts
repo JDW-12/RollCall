@@ -141,6 +141,11 @@ export const sessions = sqliteTable(
     /** Final score. Null until the manager enters it. */
     goalsFor: integer("goals_for"),
     goalsAgainst: integer("goals_against"),
+    /**
+     * Who can see it. Null: the whole crew. Otherwise a JSON array of the member ids the organiser
+     * picked; organisers and whoever pinned it always see it too (see domain/visibility).
+     */
+    invitees: text("invitees"),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),

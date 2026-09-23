@@ -294,6 +294,9 @@ h1, h2, h3, .display {
 .anim-rise-3 { animation: rc-rise .32s .12s cubic-bezier(.2,.8,.2,1) both; }
 .anim-pulse { animation: rc-pulse 1.8s ease-out infinite; }
 .anim-flame { animation: rc-flame 1.2s ease-in-out infinite; display: inline-block; }
+/* Session form: the invite list only shows once "Only people I pick" is chosen. */
+.who-for-list { display: none; }
+.who-for:has(input[name="visibility"][value="picked"]:checked) .who-for-list { display: flex; }
 .press { transition: transform .12s ease, background-color .15s ease, border-color .15s ease; }
 .press:active { transform: scale(0.97); }
 

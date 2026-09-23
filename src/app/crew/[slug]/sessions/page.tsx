@@ -1,4 +1,5 @@
 import { nowMs } from "@/lib/clock";
+import { visibleSessions } from "@/domain/visibility";
 import type { Metadata } from "next";
 import type { Rsvp, Session } from "@/db/schema";
 import { requireCrewPage } from "@/lib/access";
@@ -6,7 +7,7 @@ import { listSessions, rsvpsFor } from "@/lib/queries";
 import { CrewShell } from "@/components/shell";
 import { SessionCard } from "@/components/session-card";
 import { IconCalendar } from "@/components/icons";
-import { EmptyState, Eyebrow, LinkButton, PageTitle } from "@/components/ui";
+import { EmptyState, Eyebrow, LinkButton, Notice, PageTitle } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Sessions" };
 
@@ -30,10 +31,11 @@ function byMonth(list: Session[], now: Date): { label: string; sessions: Session
   return groups;
 }
 
-export default async function SessionsPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function SessionsPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ deleted?: string }> }) {
   const { slug } = await params;
+  const { deleted } = await searchParams;
   const { crew, user, isOrganiser } = await requireCrewPage(slug);
-  const all = await listSessions(crew.id);
+  const all = visibleSessions(await listSessions(crew.id), { id: user.id, isOrganiser });
   const rsvps = await rsvpsFor(all.map((s) => s.id));
   const now = nowMs();
   const upcoming = all.filter((s) => s.status === "open" && s.startsAt.getTime() + s.durationMin * 60_000 >= now).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
@@ -44,6 +46,11 @@ export default async function SessionsPage({ params }: { params: Promise<{ slug:
   return (
     <CrewShell crew={crew} user={user} active="sessions">
       <PageTitle eyebrow={`${all.length} pinned`} title="Sessions" action={isOrganiser ? <LinkButton href={`/crew/${crew.slug}/sessions/new`}>Pin a session</LinkButton> : undefined} />
+      {deleted ? (
+        <div className="mb-4">
+          <Notice tone="good">Deleted. It&apos;s gone for everyone, and off the table.</Notice>
+        </div>
+      ) : null}
 
       <section className="flex flex-col gap-3 anim-rise">
         <div className="flex items-center gap-2">

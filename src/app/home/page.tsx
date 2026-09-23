@@ -15,7 +15,7 @@ export default async function HomePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/signin?next=/home");
   const crews = await listCrewsForUser(user.id);
-  const withNext = await Promise.all(crews.map(async (c) => ({ crew: c, next: await getNextSession(c.id) })));
+  const withNext = await Promise.all(crews.map(async (c) => ({ crew: c, next: await getNextSession(c.id, new Date(), { id: user.id, isOrganiser: c.role === "organiser" }) })));
   return (
     <PlainShell user={user}>
       <PageTitle eyebrow={`Hello ${user.name}`} title="Your crews" action={<LinkButton href="/start" variant="secondary">New crew</LinkButton>} />

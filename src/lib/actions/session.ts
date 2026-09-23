@@ -7,7 +7,8 @@ import { z } from "zod";
 import { getDb, schema } from "@/db/client";
 import { requireCrewAction } from "@/lib/access";
 import { newId } from "@/lib/ids";
-import { fromLocalInput, parsePounds } from "@/lib/format";
+import { fromLocalInput, parsePounds, pounds, toLocalInput } from "@/lib/format";
+import { canSeeSession, encodeInvitees } from "@/domain/visibility";
 import { isSportKey } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { applyCapacityChange, applyRsvp, playing, type RsvpRow } from "@/domain/rsvp";
@@ -65,6 +66,14 @@ function parseSessionForm(fd: FormData) {
   });
 }
 
+/** Whole crew, or the members ticked on the form (checked against the crew, see domain/visibility). */
+async function parseInvitees(fd: FormData, crewId: string, creatorId: string, responded: string[] = []): Promise<string | null> {
+  const mode = str(fd, "visibility") === "picked" ? "picked" : "crew";
+  const picked = fd.getAll("invitees").map(String);
+  const memberIds = mode === "picked" ? (await listMembers(crewId)).map((m) => m.id) : [];
+  return encodeInvitees(mode, picked, { memberIds, creatorId, responded });
+}
+
 /** A fixture can only belong to this crew's own competitions; anything else is dropped. */
 async function ownCompetition(crewId: string, competitionId: string | null): Promise<string | null> {
   if (!competitionId) return null;
@@ -79,10 +88,11 @@ export async function createSession(_prev: ActionState, fd: FormData): Promise<A
     const crewId = str(fd, "crewId");
     const { crew, user } = await requireCrewAction(crewId, { organiser: true });
     const input = parseSessionForm(fd);
+    const invitees = await parseInvitees(fd, crew.id, user.id);
     const db = await getDb();
     const id = newId();
     const now = new Date();
-    await db.insert(schema.sessions).values({ id, crewId: crew.id, ...input, competitionId: await ownCompetition(crew.id, input.competitionId), status: "open", createdBy: user.id, createdAt: now });
+    await db.insert(schema.sessions).values({ id, crewId: crew.id, ...input, invitees, competitionId: await ownCompetition(crew.id, input.competitionId), status: "open", createdBy: user.id, createdAt: now });
     // The organiser is in by default. They pinned it, they're playing.
     if (str(fd, "organiserIn") === "yes") {
       await db.insert(schema.rsvps).values({ id: newId(), sessionId: id, userId: user.id, status: "in", queuedAt: now, respondedAt: now });
@@ -103,12 +113,26 @@ export async function updateSession(_prev: ActionState, fd: FormData): Promise<A
     if (!session) uiError("That session doesn't exist any more.");
     const { crew } = await requireCrewAction(session.crewId, { organiser: true });
     if (session.status === "cancelled") uiError("This session was cancelled.");
-    if (session.status !== "open") uiError("This one has already been played.");
+    // A played session keeps its spots and cost: charges were settled from them. Everything else can change.
+    const played = session.status === "played";
+    if (played) {
+      fd.set("capacity", String(session.capacity));
+      fd.set("cost", (session.costPence / 100).toFixed(2));
+      fd.set("costMode", session.costMode);
+      fd.set("rsvpDeadlineAt", session.rsvpDeadlineAt ? toLocalInput(session.rsvpDeadlineAt) : "");
+    }
     const input = parseSessionForm(fd);
     const db = await getDb();
+    const answered = await db.select({ userId: schema.rsvps.userId, status: schema.rsvps.status }).from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
+    const invitees = await parseInvitees(
+      fd,
+      crew.id,
+      session.createdBy,
+      answered.filter((r) => r.status !== "out").map((r) => r.userId),
+    );
     const promoted = await db.transaction(async (tx) => {
-      await tx.update(schema.sessions).set({ ...input, competitionId: await ownCompetition(crew.id, input.competitionId) }).where(eq(schema.sessions.id, session.id));
-      if (input.capacity === session.capacity) return [] as string[];
+      await tx.update(schema.sessions).set({ ...input, invitees, competitionId: await ownCompetition(crew.id, input.competitionId) }).where(eq(schema.sessions.id, session.id));
+      if (played || input.capacity === session.capacity) return [] as string[];
       const rows = await tx.select().from(schema.rsvps).where(eq(schema.rsvps.sessionId, session.id));
       const res = applyCapacityChange(rows.map(toRow), input.capacity, Date.now());
       await persistRsvps(tx, session.id, rows, res.rows);
@@ -139,6 +163,39 @@ export async function cancelSession(fd: FormData): Promise<void> {
     target = `/crew/${crew.slug}`;
   });
   if (target) redirect(target);
+}
+
+/**
+ * Delete a session for good: its RSVPs, attendance, votes, scorecards and feed lines go with it
+ * (cascades), and so do the charges it raised. Money that has actually been paid against it stops the
+ * delete: that has to be undone on the Money page first, or the session cancelled instead, so nobody's
+ * payment silently loses its reason.
+ */
+export async function deleteSession(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  let target = "";
+  const r = await act(async () => {
+    const session = await getSession(str(fd, "sessionId"));
+    if (!session) uiError("That session doesn't exist any more.");
+    const { crew } = await requireCrewAction(session.crewId, { organiser: true });
+    if (str(fd, "confirm") !== "yes") uiError("Tick the box to confirm. Deleting can't be undone.");
+    const db = await getDb();
+    const paid = await db
+      .select({ amount: schema.ledger.amountPence })
+      .from(schema.ledger)
+      .where(and(eq(schema.ledger.sessionId, session.id), eq(schema.ledger.kind, "payment")));
+    if (paid.length) {
+      const total = paid.reduce((a, p) => a + p.amount, 0);
+      uiError(`${pounds(total)} has been paid against this one. Remove those payments on the Money page first, or cancel it instead.`);
+    }
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.ledger).where(and(eq(schema.ledger.sessionId, session.id), eq(schema.ledger.kind, "charge")));
+      await tx.delete(schema.sessions).where(eq(schema.sessions.id, session.id));
+    });
+    revalidatePath(`/crew/${crew.slug}`, "layout");
+    target = `/crew/${crew.slug}/sessions?deleted=1`;
+  });
+  if (r.error) return r;
+  redirect(target);
 }
 
 /**
@@ -211,6 +268,8 @@ export async function rsvp(_prev: ActionState, fd: FormData): Promise<ActionStat
     const session = await getSession(sessionId);
     if (!session) uiError("That session doesn't exist any more.");
     const ctx = await requireCrewAction(session.crewId);
+    // An invite-only session can't be tapped into by someone who wasn't invited, link or no link.
+    if (!canSeeSession(session, { id: ctx.user.id, isOrganiser: ctx.isOrganiser })) uiError("This one's invite only, and you're not on the list.");
     const onBehalf = str(fd, "userId");
     const targetUser = onBehalf && ctx.isOrganiser ? onBehalf : ctx.user.id;
     if (targetUser !== ctx.user.id) {

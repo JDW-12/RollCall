@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { visibleSessions } from "@/domain/visibility";
 import Link from "next/link";
 import { after } from "next/server";
 import { nowMs } from "@/lib/clock";
@@ -26,7 +27,9 @@ export default async function LeaguePage({ params, searchParams }: { params: Pro
   const { c } = await searchParams;
   const { crew, user, isOrganiser } = await requireCrewPage(slug);
   const sport = sportOf(crew.sport);
-  const [competitions, fixtures, members, season] = await Promise.all([listCompetitions(crew.id), listFixtures(crew.id), listMembers(crew.id), crewMatchStats(crew.id)]);
+  const [competitions, allFixtures, members, season] = await Promise.all([listCompetitions(crew.id), listFixtures(crew.id), listMembers(crew.id), crewMatchStats(crew.id)]);
+  // Invite-only fixtures stay with the people on them, as on the home and sessions pages.
+  const fixtures = visibleSessions(allFixtures, { id: user.id, isOrganiser });
 
   const selected = competitions.find((x) => x.id === c) ?? competitions[0] ?? null;
   const mine = selected ? fixtures.filter((f) => f.competitionId === selected.id) : fixtures;

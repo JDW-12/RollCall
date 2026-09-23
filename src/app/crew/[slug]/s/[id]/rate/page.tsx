@@ -9,14 +9,16 @@ import { Avatar } from "@/components/avatar";
 import { IconCheck } from "@/components/icons";
 import { EmptyState, LinkButton, PageTitle, cls } from "@/components/ui";
 import { rate } from "@/lib/actions/session";
+import { canSeeSession } from "@/domain/visibility";
 
 export const metadata: Metadata = { title: "Rate the session" };
 
 export default async function RatePage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const { crew, user } = await requireCrewPage(slug);
+  const { crew, user, isOrganiser } = await requireCrewPage(slug);
   const bundle = await getSessionBundle(id);
   if (!bundle || bundle.session.crewId !== crew.id) notFound();
+  if (!canSeeSession(bundle.session, { id: user.id, isOrganiser })) notFound();
   const { session, attendance, ratings } = bundle;
   const members = await listMembers(crew.id);
   const played = attendance.filter((a) => a.attended).map((a) => members.find((m) => m.id === a.userId)).filter((m): m is NonNullable<typeof m> => !!m);

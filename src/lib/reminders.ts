@@ -10,6 +10,7 @@ import { summarise } from "@/domain/rsvp";
 import { sportOf } from "@/domain/sports";
 
 import { commitBy } from "@/domain/deadline";
+import { canSeeSession } from "@/domain/visibility";
 
 const H = 3_600_000;
 
@@ -51,7 +52,8 @@ export async function runReminders(now = new Date()): Promise<ReminderRun> {
     );
     const url = `${base}/crew/${crew.slug}/s/${session.id}`;
     const sport = sportOf(session.sport);
-    const unanswered = members.filter((m) => !rsvps.some((r) => r.userId === m.user.id));
+    // Invite-only sessions only chase the people on them.
+    const unanswered = members.filter((m) => canSeeSession(session, { id: m.user.id, isOrganiser: m.role === "organiser" }) && !rsvps.some((r) => r.userId === m.user.id));
     for (const m of unanswered) {
       if (!m.user.email) {
         result.skippedNoEmail++;

@@ -4,15 +4,18 @@ import { getCurrentUser } from "@/lib/auth";
 import { getSession } from "@/lib/queries";
 import { appUrl } from "@/lib/env";
 import { buildIcs } from "@/domain/ics";
+import { canSeeSession } from "@/domain/visibility";
 
 /** One session as a downloadable .ics. Members only. */
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   const crew = await findCrewBySlug(slug);
   const user = await getCurrentUser();
-  if (!crew || !user || !(await findMembership(crew.id, user.id))) return new NextResponse("Not found", { status: 404 });
+  const membership = crew && user ? await findMembership(crew.id, user.id) : null;
+  if (!crew || !user || !membership) return new NextResponse("Not found", { status: 404 });
   const session = await getSession(id);
   if (!session || session.crewId !== crew.id) return new NextResponse("Not found", { status: 404 });
+  if (!canSeeSession(session, { id: user.id, isOrganiser: membership.role === "organiser" })) return new NextResponse("Not found", { status: 404 });
   const base = await appUrl();
   const ics = buildIcs(
     [

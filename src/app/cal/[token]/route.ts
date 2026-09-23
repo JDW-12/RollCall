@@ -16,7 +16,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const db = await getDb();
   const crew = (await db.select().from(schema.crews).where(eq(schema.crews.calendarToken, clean)).limit(1))[0];
   if (!crew) return new NextResponse("Not found", { status: 404 });
-  const sessions = await listSessions(crew.id);
+  // The crew calendar is one shared link, so invite-only sessions stay off it.
+  const sessions = (await listSessions(crew.id)).filter((s) => !s.invitees);
   const base = await appUrl();
   const ics = buildIcs(
     sessions.map((s) => ({

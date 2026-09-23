@@ -75,6 +75,7 @@ export function SessionCard({ session, rsvps, slug, myId, emphasis = false, orga
           {s.reserve > 0 ? <Pill>{s.reserve} reserve</Pill> : null}
           {s.full ? <Pill tone="ink">Full</Pill> : <Pill tone="good">{s.spotsLeft} spots left</Pill>}
           {unconfirmed ? <Pill tone="warn">{organiser ? "Needs confirming" : "Awaiting result"}</Pill> : null}
+          {session.invitees ? <Pill tone="ink">Invite only</Pill> : null}
         </div>
       ) : null}
     </Link>

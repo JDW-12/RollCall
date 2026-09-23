@@ -7,6 +7,7 @@ import { balances, type Balance } from "@/domain/money";
 import type { Appearance, MatchStatRow } from "@/domain/match-stats";
 import { teamsOf, type DivisionCandidate } from "@/domain/divisions";
 import type { VenueHistoryRow } from "@/domain/venues";
+import { visibleSessions, type Viewer } from "@/domain/visibility";
 import type { StandingRow } from "@/domain/league";
 
 export type Member = schema.User & { role: schema.CrewMember["role"]; joinedAt: Date };
@@ -72,13 +73,15 @@ export async function getSessionBundle(sessionId: string): Promise<SessionBundle
   return { session, rsvps, attendance: att, ratings: rats, games: gms, entries, ledger: led, matchStats: ms };
 }
 
-export async function getNextSession(crewId: string, now = new Date()): Promise<schema.Session | null> {
+/** The next open session. With a viewer, the next one they can see (invite-only sessions skip the rest). */
+export async function getNextSession(crewId: string, now = new Date(), viewer?: Viewer): Promise<schema.Session | null> {
   const db = await getDb();
-  const rows = await db
+  const all = await db
     .select()
     .from(schema.sessions)
     .where(and(eq(schema.sessions.crewId, crewId), eq(schema.sessions.status, "open")))
     .orderBy(asc(schema.sessions.startsAt));
+  const rows = viewer ? visibleSessions(all, viewer) : all;
   return rows.find((s) => s.startsAt.getTime() + s.durationMin * 60_000 >= now.getTime()) ?? rows[0] ?? null;
 }
 

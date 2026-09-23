@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { schema } from "@/db/client";
 
@@ -86,6 +86,12 @@ export async function mergeUsers(db: Db, fromId: string, intoId: string): Promis
     }
     // Sessions and crews the guest created keep a valid author.
     await tx.update(schema.sessions).set({ createdBy: intoId }).where(eq(schema.sessions.createdBy, fromId));
+    // Invite-only sessions list member ids in JSON: carry the invite across.
+    const invited = await tx.select({ id: schema.sessions.id, invitees: schema.sessions.invitees }).from(schema.sessions).where(like(schema.sessions.invitees, `%"${fromId}"%`));
+    for (const s of invited) {
+      const ids = [...new Set((JSON.parse(s.invitees ?? "[]") as string[]).map((id) => (id === fromId ? intoId : id)))];
+      await tx.update(schema.sessions).set({ invitees: JSON.stringify(ids) }).where(eq(schema.sessions.id, s.id));
+    }
     await tx.update(schema.crews).set({ createdBy: intoId }).where(eq(schema.crews.createdBy, fromId));
     await tx.update(schema.events).set({ userId: intoId }).where(eq(schema.events.userId, fromId));
 

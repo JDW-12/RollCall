@@ -6,6 +6,7 @@ import Link from "next/link";
 import { requireCrewPage } from "@/lib/access";
 import { getCrewTable, getFeed, getNextSession, golfRounds, listSessions, rsvpsFor } from "@/lib/queries";
 import { postedRounds } from "@/domain/golf-feed";
+import { visibleSessions } from "@/domain/visibility";
 import type { Round } from "@/domain/golf-stats";
 import { sportOf } from "@/domain/sports";
 import { summarise } from "@/domain/rsvp";
@@ -37,14 +38,19 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
   const { crew, user, isOrganiser } = ctx;
   // A golf crew's feed is only rounds scheduled and rounds posted; the chatter (RSVPs, joins) stays off it.
   const golfCrew = crew.sport === "golf";
-  const [next, all, rawFeed, table, rounds] = await Promise.all([
-    getNextSession(crew.id),
+  const viewer = { id: user.id, isOrganiser };
+  const [next, everySession, crewFeed, table, rounds] = await Promise.all([
+    getNextSession(crew.id, new Date(), viewer),
     listSessions(crew.id),
     getFeed(crew.id, 12, golfCrew ? ["session_pinned"] : undefined),
     getCrewTable(crew),
     golfCrew ? golfRounds(crew.id) : Promise.resolve([]),
   ]);
-  const feed = golfCrew ? golfFeed(rawFeed, rounds, all, crew.id) : rawFeed;
+  // Invite-only sessions, and the feed lines about them, are only for the people on them.
+  const all = visibleSessions(everySession, viewer);
+  const hidden = new Set(everySession.filter((s) => !all.includes(s)).map((s) => s.id));
+  const rawFeed = crewFeed.filter((f) => !f.sessionId || !hidden.has(f.sessionId));
+  const feed = (golfCrew ? golfFeed(rawFeed, rounds, all, crew.id) : rawFeed).filter((f) => !f.sessionId || !hidden.has(f.sessionId));
   const now = nowMs();
   const upcoming = all.filter((s) => s.status === "open" && s.id !== next?.id && s.startsAt.getTime() > now).slice(0, 3);
   const needsConfirm = all.filter((s) => s.status === "open" && s.startsAt.getTime() + s.durationMin * 60_000 < now);

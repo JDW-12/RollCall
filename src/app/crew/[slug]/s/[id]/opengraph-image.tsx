@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { inviteesOf } from "@/domain/visibility";
 import { findCrewBySlug } from "@/lib/access";
 import { getSessionBundle, listMembers } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
@@ -36,7 +37,8 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const fonts = ogFonts();
   const crew = await findCrewBySlug(slug);
   const bundle = crew ? await getSessionBundle(id) : null;
-  if (!crew || !bundle || bundle.session.crewId !== crew.id) return new ImageResponse(<Fallback />, { ...size, fonts });
+  // Invite-only sessions don't put their details on a link preview anyone in the chat can see.
+  if (!crew || !bundle || bundle.session.crewId !== crew.id || inviteesOf(bundle.session)) return new ImageResponse(<Fallback />, { ...size, fonts });
 
   const { session, rsvps, attendance, ratings } = bundle;
   const members = await listMembers(crew.id);

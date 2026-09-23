@@ -12,7 +12,8 @@ import { sportOf } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { playing, reserves, summarise } from "@/domain/rsvp";
 import { previewShare } from "@/domain/money";
-import { CrewShell } from "@/components/shell";
+import { CrewShell, PlainShell } from "@/components/shell";
+import { canSeeSession, inviteesOf } from "@/domain/visibility";
 import { toRows } from "@/components/session-card";
 import { RsvpButtons } from "./rsvp-buttons";
 import { Avatar } from "@/components/avatar";
@@ -23,7 +24,7 @@ import { Ring } from "@/components/ring";
 import { Countdown } from "@/components/countdown";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconClock, IconMedal, IconPin, IconWhistle } from "@/components/icons";
-import { Button, Eyebrow, LinkButton, Notice, Panel, Pill, Stat, cls } from "@/components/ui";
+import { Button, EmptyState, Eyebrow, LinkButton, Notice, Panel, Pill, Stat, cls } from "@/components/ui";
 import { TeamsPanel } from "@/components/games/teams";
 import { AmericanoPanel } from "@/components/games/americano";
 import { StablefordPanel } from "@/components/games/stableford";
@@ -37,6 +38,8 @@ import { fmtLong, fmtTime, pounds, relativeDay } from "@/lib/format";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const b = await getSessionBundle(id);
+  // An invite-only session's title stays off link previews and browser tabs.
+  if (b && inviteesOf(b.session)) return { title: "Invite only" };
   return { title: b?.session.title ?? "Session" };
 }
 
@@ -46,6 +49,21 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const gate = await optionalCrewPage(slug);
   const bundle = await getSessionBundle(id);
   if (!bundle || bundle.session.crewId !== gate.crew.id) notFound();
+  const inviteOnly = <EmptyState title="Invite only" body="This one's just for the people the organiser picked. If you think you should be on it, give them a shout." />;
+  if (!gate.member && inviteesOf(bundle.session)) {
+    return (
+      <PlainShell user={gate.user}>
+        <div className="max-w-md mx-auto mt-6">{inviteOnly}</div>
+      </PlainShell>
+    );
+  }
+  if (gate.member && !canSeeSession(bundle.session, { id: gate.member.user.id, isOrganiser: gate.member.isOrganiser })) {
+    return (
+      <CrewShell crew={gate.member.crew} user={gate.member.user} active="sessions">
+        <div className="max-w-md mt-6">{inviteOnly}</div>
+      </CrewShell>
+    );
+  }
   if (!gate.member) {
     // Someone opened a shared link without being in the crew: show the poster, not a login wall.
     await track("preview_view", { crewId: gate.crew.id, sessionId: id, userId: gate.user?.id ?? null, payload: { what: "session" } });
@@ -60,7 +78,9 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const inRows = playing(rows);
   const reserveRows = reserves(rows);
   const outRows = rsvps.filter((r) => r.status === "out");
-  const unanswered = members.filter((m) => !rsvps.some((r) => r.userId === m.id));
+  // Only people who can see it can be waiting on: an invite-only session doesn't chase the rest of the crew.
+  const unanswered = members.filter((m) => canSeeSession(session, { id: m.id, isOrganiser: m.role === "organiser" }) && !rsvps.some((r) => r.userId === m.id));
+  const picked = inviteesOf(session);
   const mine = rsvps.find((r) => r.userId === user.id)?.status ?? null;
   const member = (uid: string) => members.find((m) => m.id === uid);
   const now = nowMs();
@@ -174,6 +194,12 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
               </span>
             ) : null}
           </div>
+          {picked ? (
+            <p className="text-sm text-ink-2">
+              <span className="eyebrow mr-1.5">Invite only</span>
+              {picked.map((uid) => member(uid)?.name.split(" ")[0]).filter(Boolean).join(", ")}
+            </p>
+          ) : null}
           {session.notes ? <blockquote className="text-sm text-ink-2 border-l-2 border-pitch pl-3 py-0.5 whitespace-pre-line">{session.notes}</blockquote> : null}
           {isOrganiser ? (
             <div className="flex flex-wrap gap-2 mt-1">
@@ -184,13 +210,16 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
                     Confirm who played
                   </LinkButton>
                   <LinkButton href={`/crew/${crew.slug}/s/${session.id}/edit`} variant="secondary" className="min-h-9 px-3 text-sm">
-                    Edit
+                    Edit or delete
                   </LinkButton>
                 </>
               ) : session.status === "played" ? (
                 <>
                   <LinkButton href={`/crew/${crew.slug}/s/${session.id}/play`} variant="secondary" className="min-h-9 px-3 text-sm">
                     Fix attendance
+                  </LinkButton>
+                  <LinkButton href={`/crew/${crew.slug}/s/${session.id}/edit`} variant="secondary" className="min-h-9 px-3 text-sm">
+                    Edit or delete
                   </LinkButton>
                   <form action={reopenSession}>
                     <input type="hidden" name="sessionId" value={session.id} />
@@ -199,7 +228,11 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
                     </Button>
                   </form>
                 </>
-              ) : null}
+              ) : (
+                <LinkButton href={`/crew/${crew.slug}/s/${session.id}/edit`} variant="secondary" className="min-h-9 px-3 text-sm">
+                  Delete
+                </LinkButton>
+              )}
             </div>
           ) : null}
         </div>
