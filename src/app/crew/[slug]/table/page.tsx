@@ -5,6 +5,7 @@ import { requireCrewPage } from "@/lib/access";
 import { getCrewTable, getSessionBundle, golfLeaderboardData, listSessions } from "@/lib/queries";
 import { currentRound, golfRoundSummary, golfTable } from "@/domain/golf-table";
 import { fmtDay } from "@/lib/format";
+import { LeaderBoard } from "@/components/golf/leader-board";
 import type { RatingCategory } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { POINTS, turnUpRate, type TableRow } from "@/domain/table";
@@ -275,59 +276,62 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
       </PageTitle>
 
       {summary ? (
-        <Panel className={cls("p-4 flex flex-col gap-3 anim-rise", justSubmitted && "border-pitch/50")} id="round">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="eyebrow">{justSubmitted ? "Round submitted" : "Latest round"}</div>
-              <div className="display text-2xl font-bold uppercase leading-tight wrap-anywhere mt-0.5">{summary.course ?? summary.title}</div>
-              <div className="text-xs text-ink-3 mt-0.5">
-                {fmtDay(new Date(summary.startsAt))}
-                {summary.course ? ` · ${summary.title}` : ""}
-              </div>
-            </div>
-            <LinkButton href={`/crew/${crew.slug}/s/${summary.sessionId}`} variant="secondary" className="min-h-9 px-3 text-sm shrink-0">
-              Open round
-            </LinkButton>
-          </div>
-
+        <section className="flex flex-col gap-3 anim-rise" id="round" aria-label="This round">
           {mine ? (
-            <div className="rounded-md border border-pitch/40 bg-pitch-soft px-3 py-2.5 flex items-center justify-between gap-3">
-              <div className="text-sm">
-                <div className="font-semibold">{highlight === user.id ? "You scored" : `${name(highlight)?.name ?? "They"} scored`}</div>
-                <div className="text-ink-2 text-xs">
-                  {mine.stableford} Stableford
-                  {mine.holesPlayed < summary.holes ? ` (${mine.holesPlayed} of ${summary.holes} holes)` : ""} + {mine.votePoints} from votes
+            // The payoff for submitting: what the round earned, before anything else.
+            <div className="rounded-[var(--radius-md)] overflow-hidden border" style={{ borderColor: "color-mix(in oklab, var(--gf-bar-now) 45%, transparent)", background: "linear-gradient(120deg, color-mix(in oklab, var(--gf-fairway) 30%, var(--panel)) 0%, var(--panel) 70%)" }}>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="eyebrow">{justSubmitted ? "Round submitted" : "Latest round"}</div>
+                  <div className="font-semibold mt-0.5">{highlight === user.id ? "You scored" : `${name(highlight)?.name ?? "They"} scored`}</div>
+                  <div className="text-ink-2 text-xs mt-0.5">
+                    {mine.stableford} Stableford
+                    {mine.holesPlayed < summary.holes ? ` (${mine.holesPlayed} of ${summary.holes} holes)` : ""} + {mine.votePoints} from votes
+                  </div>
+                </div>
+                <div className="display text-[56px] font-extrabold leading-none" style={{ color: "var(--gf-bar-now)" }}>
+                  {mine.total}
                 </div>
               </div>
-              <div className="display text-4xl font-extrabold tnum text-pitch leading-none">{mine.total}</div>
             </div>
-          ) : null}
+          ) : (
+            <div className="eyebrow">{justSubmitted ? "Round submitted" : "Latest round"}</div>
+          )}
 
-          <ol className="flex flex-col divide-y divide-line-2 rounded-md border border-line overflow-hidden" aria-label="This round">
-            {summary.rows.map((r, i) => {
+          <LeaderBoard
+            label="Round results"
+            title={summary.course ?? summary.title}
+            columns={["Stbl", "Vote"]}
+            rows={summary.rows.flatMap((r) => {
               const m = name(r.userId);
-              if (!m) return null;
-              return (
-                <li key={r.userId} className={cls("flex items-center gap-2.5 px-3 py-2 text-sm", r.userId === highlight ? "bg-pitch-soft" : "bg-panel-2")}>
-                  <span className="display text-lg font-bold tnum w-5 text-ink-3">{i + 1}</span>
-                  <Avatar name={m.name} hue={m.hue} size={28} />
-                  <span className="flex-1 min-w-0 font-semibold truncate">{m.name}</span>
-                  <span className="font-mono text-xs text-ink-3 tnum text-right">
-                    {r.stableford} pts{r.holesPlayed && r.holesPlayed < summary.holes ? ` · ${r.holesPlayed}h` : ""}
-                    {r.votePoints ? <span className="text-pitch"> +{r.votePoints}</span> : null}
-                  </span>
-                  <span className="display text-2xl font-extrabold tnum w-10 text-right">{r.total}</span>
-                </li>
-              );
+              if (!m) return [];
+              return [
+                {
+                  key: r.userId,
+                  href: `/crew/${crew.slug}/players/${r.userId}`,
+                  name: m.name,
+                  you: r.userId === highlight,
+                  sub: r.holesPlayed && r.holesPlayed < summary.holes ? `Thru ${r.holesPlayed}` : summary.course ? `${fmtDay(new Date(summary.startsAt))} · ${summary.title}` : fmtDay(new Date(summary.startsAt)),
+                  cells: [r.stableford, r.votePoints ? `+${r.votePoints}` : "–"],
+                  points: r.total,
+                },
+              ];
             })}
-          </ol>
-          <p className="text-xs text-ink-3">
-            Votes add to this once they&apos;re in.{" "}
-            <Link href={`/crew/${crew.slug}/s/${summary.sessionId}/rate`} className="underline font-semibold text-pitch">
-              Cast yours
-            </Link>
-          </p>
-        </Panel>
+            footer={
+              <span className="flex items-center justify-between gap-3">
+                <span>Votes add to the round once they&apos;re in.</span>
+                <span className="flex gap-1 shrink-0">
+                  <LinkButton href={`/crew/${crew.slug}/s/${summary.sessionId}/rate`} variant="ghost" className="min-h-8 px-2 text-xs text-white hover:bg-white/10">
+                    Cast yours
+                  </LinkButton>
+                  <LinkButton href={`/crew/${crew.slug}/s/${summary.sessionId}`} variant="ghost" className="min-h-8 px-2 text-xs text-white hover:bg-white/10">
+                    Open round
+                  </LinkButton>
+                </span>
+              </span>
+            }
+          />
+        </section>
       ) : null}
 
       {!live ? (
@@ -339,50 +343,28 @@ async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: P
           <p className="text-ink-2 max-w-[38ch]">Play a round and submit your card: your Stableford points land here straight away.</p>
         </Panel>
       ) : (
-        <>
-          <div className="mt-5">
-            <Podium rows={rows} members={members} slug={crew.slug} />
-          </div>
-          <Panel className="overflow-x-auto mt-4 anim-rise-2">
-            <table className="w-full text-sm min-w-[520px]">
-              <thead>
-                <tr className="eyebrow text-left bg-ground-2">
-                  <th className="font-normal pl-3 pr-1 py-2.5 w-10">#</th>
-                  <th className="font-normal px-2 py-2.5">Player</th>
-                  <th className="font-normal px-2 py-2.5 text-right">Rounds</th>
-                  <th className="font-normal px-2 py-2.5 text-right">Avg</th>
-                  <th className="font-normal px-2 py-2.5 text-right">Best</th>
-                  <th className="font-normal px-2 py-2.5 text-right">Votes</th>
-                  <th className="font-normal px-3 py-2.5 text-right">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => {
-                  const m = name(r.userId);
-                  if (!m) return null;
-                  return (
-                    <tr key={r.userId} className={cls("border-t border-line-2 hover:bg-ground-2", r.userId === user.id && "bg-pitch-soft/50")}>
-                      <td className="pl-3 pr-1 py-2">
-                        <span className={cls("display text-xl font-bold tnum", i < 3 ? "text-ink" : "text-ink-3")}>{i + 1}</span>
-                      </td>
-                      <td className="px-2 py-2">
-                        <Link href={`/crew/${crew.slug}/players/${r.userId}`} className="flex items-center gap-2 min-w-0">
-                          <Avatar name={m.name} hue={m.hue} size={30} />
-                          <span className="font-semibold truncate">{m.name}</span>
-                        </Link>
-                      </td>
-                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.rounds}</td>
-                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.avg?.toFixed(1) ?? <span className="text-ink-3">–</span>}</td>
-                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.best ?? <span className="text-ink-3">–</span>}</td>
-                      <td className="px-2 py-2 text-right tnum">{r.votePoints ? <span className="text-pitch font-semibold">+{r.votePoints}</span> : <span className="text-ink-3">0</span>}</td>
-                      <td className="px-3 py-2 text-right tnum display text-2xl font-extrabold">{r.points}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Panel>
-        </>
+        <div className="mt-6 anim-rise-2">
+          <LeaderBoard
+            label="Season"
+            title="Season"
+            columns={["Rds", "Avg", "Best"]}
+            rows={rows.flatMap((r) => {
+              const m = name(r.userId);
+              if (!m) return [];
+              return [
+                {
+                  key: r.userId,
+                  href: `/crew/${crew.slug}/players/${r.userId}`,
+                  name: m.name,
+                  you: r.userId === user.id,
+                  sub: r.votePoints ? `${r.stableford} Stableford + ${r.votePoints} votes` : `${r.stableford} Stableford`,
+                  cells: [r.rounds, r.avg === null ? "–" : Math.round(r.avg), r.best ?? "–"],
+                  points: r.points,
+                },
+              ];
+            })}
+          />
+        </div>
       )}
     </CrewShell>
   );

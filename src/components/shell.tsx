@@ -29,7 +29,8 @@ export function CrewShell({ crew, user, active, children, wide = false }: { crew
   const tabs = tabsFor(crew.sport);
   const width = wide ? "max-w-5xl" : "max-w-3xl";
   return (
-    <div className="flex flex-col min-h-full">
+    // Golf crews get the clubhouse palette; each sport is themed on its own.
+    <div className={cls("flex flex-col min-h-full", crew.sport === "golf" && "golf")}>
       <SandboxBanner />
       <header className="sticky top-0 z-20 bg-ground/85 backdrop-blur-md border-b border-line">
         <div className={cls(width, "mx-auto px-4 h-14 flex items-center justify-between gap-3")}>

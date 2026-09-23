@@ -21,6 +21,7 @@ import { EmptyState, Eyebrow, LinkButton, Panel, Pill, cls } from "@/components/
 import { fmtDay, fmtTime, plural, pounds, relativeDay } from "@/lib/format";
 import { RsvpButtons } from "./s/[id]/rsvp-buttons";
 import { GolfHome } from "@/components/golf-home";
+import { CourseBanner } from "@/components/golf/course-banner";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -45,6 +46,28 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
 
   return (
     <CrewShell crew={crew} user={user} active="">
+      {golf ? (
+        <CourseBanner>
+          <div className="flex items-start justify-between gap-3 anim-rise">
+            <div className="min-w-0 flex flex-col gap-1">
+              <span className="font-mono text-[10px] tracking-[0.22em] uppercase" style={{ color: "var(--gf-band-ink-2)" }}>
+                {crew.seasonName} · Golf society
+              </span>
+              <h1 className="display text-[42px] sm:text-[56px] font-extrabold uppercase leading-[0.88] wrap-anywhere [text-shadow:0_2px_18px_rgba(0,0,0,0.25)]">{crew.name}</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold anim-rise-2">
+            <span className="rounded-full px-2.5 py-1 backdrop-blur-md tnum" style={{ background: "color-mix(in oklab, var(--ground) 55%, transparent)", color: "var(--ink)" }}>
+              {plural(table.members.length, "member")}
+            </span>
+            {next && next.startsAt.getTime() > now ? (
+              <span className="rounded-full px-2.5 py-1 backdrop-blur-md truncate" style={{ background: "color-mix(in oklab, var(--ground) 55%, transparent)", color: "var(--ink)" }}>
+                Next tee: {relativeDay(next.startsAt)} {fmtTime(next.startsAt)}
+              </span>
+            ) : null}
+          </div>
+        </CourseBanner>
+      ) : (
       <CrewBand crew={crew}>
         <div className="flex items-end justify-between gap-4 anim-rise">
           <div className="min-w-0 flex flex-col gap-1.5">
@@ -61,6 +84,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
           </span>
         </div>
       </CrewBand>
+      )}
 
       {welcome ? (
         <Panel className="p-4 mb-5 flex flex-col gap-3 border-pitch/40 bg-pitch-soft anim-rise">
@@ -189,7 +213,7 @@ function Poster({ session, rsvps, members, slug, myId, organiser, now }: { sessi
   const rel = relativeDay(session.startsAt);
   return (
     <Panel as="article" className="surface-raised relative overflow-hidden p-4 sm:p-5 flex flex-col gap-4">
-      <div className="absolute inset-0 pitch-lines opacity-60" aria-hidden="true" />
+      <div className={cls("absolute inset-0", session.sport === "golf" ? "fairway-lines" : "pitch-lines opacity-60")} aria-hidden="true" />
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Pill tone={future ? "good" : "warn"}>{rel}</Pill>

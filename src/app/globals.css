@@ -176,6 +176,113 @@ h1, h2, h3, .display {
   pointer-events: none;
 }
 
+/*
+  Golf: the clubhouse palette. Scoped to golf crews (the shell adds .golf), so no other sport changes.
+  Scene colours paint the course illustration; data colours are validated with the dataviz checker:
+  scorecard marks against the paper, form bars against each theme's panel.
+*/
+.golf {
+  --gf-sky-top: #0e1f33;
+  --gf-sky-mid: #2c3553;
+  --gf-sky-low: #c9794a;
+  --gf-sun: #ffd28a;
+  --gf-sun-glow: rgba(255, 190, 110, 0.45);
+  --gf-cloud: rgba(255, 220, 190, 0.1);
+  --gf-hills-far: #1d3a33;
+  --gf-trees: #10281d;
+  --gf-trees-2: #163424;
+  --gf-rough: #1a4429;
+  --gf-fairway: #2a7340;
+  --gf-fairway-2: #33854b;
+  --gf-green: #45a85a;
+  --gf-green-2: #57bc6b;
+  --gf-sand: #d8bc82;
+  --gf-sand-2: #b89a61;
+  --gf-water: #1f5d86;
+  --gf-water-2: #5aa0cf;
+  --gf-flag: #e2463a;
+  --gf-pole: #f2efe6;
+  --gf-band-ink: #f6f3ea;
+  --gf-band-ink-2: rgba(246, 243, 234, 0.78);
+  --gf-board: #0f3a24;
+  --gf-board-2: #0a2c1a;
+  --gf-board-line: rgba(255, 255, 255, 0.07);
+  --gf-plate: #f4f1e6;
+  --gf-plate-ink: #10231a;
+  --gf-leader: #ffd34d;
+  --gf-paper: #f7f2e3;
+  --gf-paper-2: #efe7d0;
+  --gf-paper-ink: #1d2a22;
+  --gf-paper-ink-2: #5b6358;
+  --gf-paper-line: #d8ceb2;
+  --gf-under: #c8352b;
+  --gf-over: #2a63b0;
+  --gf-bar: #66776d;
+  --gf-bar-now: #3aaf58;
+  --gf-grid: #243129;
+}
+:root[data-theme="light"] .golf {
+  --gf-sky-top: #5fb2e6;
+  --gf-sky-mid: #a9dcf3;
+  --gf-sky-low: #fbe6b4;
+  --gf-sun: #fff6d6;
+  --gf-sun-glow: rgba(255, 236, 170, 0.7);
+  --gf-cloud: rgba(255, 255, 255, 0.78);
+  --gf-hills-far: #9cc79a;
+  --gf-trees: #3f7e4a;
+  --gf-trees-2: #4b8d55;
+  --gf-rough: #5d9f58;
+  --gf-fairway: #79bf62;
+  --gf-fairway-2: #88cb6e;
+  --gf-green: #97d677;
+  --gf-green-2: #aae389;
+  --gf-sand: #eed9a4;
+  --gf-sand-2: #d7bd7d;
+  --gf-water: #3d8fc4;
+  --gf-water-2: #9fd0ee;
+  --gf-band-ink: #0f2a1d;
+  --gf-band-ink-2: rgba(15, 42, 29, 0.72);
+  --gf-bar: #808f86;
+  --gf-bar-now: #1f7a3a;
+  --gf-grid: #dde3db;
+}
+
+/* Mowing stripes, for golf posters in place of pitch lines. */
+.fairway-lines {
+  background-image: repeating-linear-gradient(115deg, color-mix(in oklab, var(--pitch) 9%, transparent) 0 26px, transparent 26px 52px);
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.9), transparent 85%);
+}
+
+/* Golf-ball dimples, a hex-packed dot field for the golf card. */
+.dimples {
+  background-image:
+    radial-gradient(circle at center, rgba(0,0,0,0.13) 0 1.6px, transparent 2.2px),
+    radial-gradient(circle at center, rgba(0,0,0,0.13) 0 1.6px, transparent 2.2px);
+  background-size: 10px 9px;
+  background-position: 0 0, 5px 4.5px;
+  mix-blend-mode: multiply;
+}
+
+/* The clubhouse leader board: painted planks behind hand-changed plates. */
+.gf-board {
+  background:
+    repeating-linear-gradient(90deg, var(--gf-board-line) 0 1px, transparent 1px 120px),
+    linear-gradient(180deg, var(--gf-board) 0%, var(--gf-board-2) 100%);
+  box-shadow: inset 0 0 0 3px #0a2415, inset 0 0 0 5px #c9a44c, inset 0 2px 24px rgba(0,0,0,0.45), var(--shadow);
+}
+.gf-plate {
+  background: linear-gradient(180deg, #ffffff 0%, var(--gf-plate) 100%);
+  color: var(--gf-plate-ink);
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12), 0 1px 0 rgba(0,0,0,0.35);
+}
+
+@keyframes gf-flag { 0%, 100% { transform: skewY(0deg) scaleX(1) } 50% { transform: skewY(-6deg) scaleX(0.92) } }
+@keyframes gf-sun { 0%, 100% { opacity: 0.85 } 50% { opacity: 1 } }
+@keyframes gf-drift { from { transform: translateX(0) } to { transform: translateX(-60px) } }
+.gf-flag { animation: gf-flag 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: left center; }
+.gf-sun { animation: gf-sun 5s ease-in-out infinite; }
+.gf-cloud { animation: gf-drift 40s linear infinite alternate; }
+
 /* Motion */
 @keyframes rc-pop { 0% { transform: scale(0.96); opacity: 0.6 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }
 @keyframes rc-rise { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }

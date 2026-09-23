@@ -2,12 +2,12 @@ import type { Game } from "@/db/schema";
 import { defaultHoles, stablefordTotals, type StablefordCard } from "@/domain/stableford";
 import type { Member } from "@/lib/queries";
 import { ActionForm, SubmitButton } from "@/components/action-form";
-import { IconGolf } from "@/components/icons";
 import { Panel, cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
 import { RESULT_LABEL, roundAwards, roundHighlights } from "@/domain/golf-highlights";
 import { CoursePicker } from "./course-picker";
 import { HoleScorer } from "./hole-scorer";
+import { FlagEmblem, TeeMarker } from "@/components/golf/marks";
 
 export function StablefordPanel({ sessionId, game, members, isOrganiser, playerIds, myId, providerOn = false, scanOn = false }: { sessionId: string; game?: Game; members: Member[]; isOrganiser: boolean; playerIds: string[]; myId: string; providerOn?: boolean; scanOn?: boolean }) {
   const card: StablefordCard = game ? (JSON.parse(game.data) as StablefordCard) : { holes: defaultHoles(), handicaps: {}, strokes: {} };
@@ -24,11 +24,16 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
     <Panel className="p-4 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0">
-          <IconGolf size={18} className="text-pitch mt-1 shrink-0" />
+          <FlagEmblem size={26} className="mt-0.5 shrink-0" />
           <div className="min-w-0">
             {/* The round is known by where it was played; the scoring format is the small print. */}
             <h3 className="text-xl font-bold uppercase leading-tight wrap-anywhere">{card.course?.name || "Stableford"}</h3>
-            {card.course ? <div className="eyebrow mt-0.5">{card.course.tee ? `${card.course.tee} tees · ` : ""}Stableford</div> : null}
+            {card.course ? (
+              <div className="eyebrow mt-0.5 flex items-center gap-1.5">
+                <TeeMarker tee={card.course.tee} size={10} />
+                {card.course.tee ? `${card.course.tee} tees · ` : ""}Stableford
+              </div>
+            ) : null}
           </div>
         </div>
         <span className="eyebrow tnum shrink-0 mt-1">
