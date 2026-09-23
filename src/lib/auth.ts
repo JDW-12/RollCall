@@ -4,9 +4,10 @@ import { and, eq, gt } from "drizzle-orm";
 import { cache } from "react";
 import { getDb, schema } from "@/db/client";
 import { newId, newToken, hueFrom } from "./ids";
+import { SESSION_DAYS } from "./canonical";
 
 export const SESSION_COOKIE = "rc_session";
-const SESSION_DAYS = 180;
+const DAY = 86_400_000;
 
 export type CurrentUser = schema.User;
 
@@ -16,13 +17,21 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const db = await getDb();
+  const now = new Date();
   const rows = await db
-    .select({ user: schema.users })
+    .select({ user: schema.users, expiresAt: schema.authSessions.expiresAt })
     .from(schema.authSessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.authSessions.userId))
-    .where(and(eq(schema.authSessions.id, token), gt(schema.authSessions.expiresAt, new Date())))
+    .where(and(eq(schema.authSessions.id, token), gt(schema.authSessions.expiresAt, now)))
     .limit(1);
-  return rows[0]?.user ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  // Sliding sign-in: using the app pushes the expiry out again (at most one write a day), matching the
+  // cookie the proxy refreshes, so a regular never gets signed out.
+  if (row.expiresAt.getTime() - now.getTime() < (SESSION_DAYS - 1) * DAY) {
+    await db.update(schema.authSessions).set({ expiresAt: new Date(now.getTime() + SESSION_DAYS * DAY) }).where(eq(schema.authSessions.id, token));
+  }
+  return row.user;
 });
 
 /** Create a login session and set the cookie. Only call from a server action or route handler. */
@@ -30,7 +39,7 @@ export async function startSession(userId: string): Promise<void> {
   const db = await getDb();
   const id = newToken() + newToken();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_DAYS * 86_400_000);
+  const expiresAt = new Date(now.getTime() + SESSION_DAYS * DAY);
   await db.insert(schema.authSessions).values({ id, userId, createdAt: now, expiresAt });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, id, {
