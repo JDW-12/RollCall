@@ -20,7 +20,23 @@ export type CourseHit = CourseCard & {
   ref: string;
   /** How often the library card has been used; 0 for API hits. */
   uses: number;
+  /**
+   * What the provider's search told us about a card it didn't send. Its search endpoint returns course
+   * and tee summaries without hole-by-hole data; the full card is fetched from the course endpoint
+   * when the organiser picks it, so `holes` is empty until then.
+   */
+  summary?: { holes: number | null; par: number | null };
 };
+
+/** The one-line description a picker shows under a course, whether or not its card has loaded. */
+export function hitDetail(hit: Pick<CourseHit, "holes" | "summary">): string {
+  if (hit.holes.length) return `${hit.holes.length} holes · par ${coursePar(hit.holes)}`;
+  const n = hit.summary?.holes;
+  const par = hit.summary?.par;
+  if (n && par) return `${n} holes · par ${par}`;
+  if (n) return `${n} holes · card loads when picked`;
+  return "Card loads when picked";
+}
 
 export class CourseError extends Error {}
 
@@ -103,7 +119,7 @@ export function courseKey(name: string, tee = ""): string {
  * Merges library and provider hits: library first (most used first), then provider hits that
  * aren't already in the library under the same course and tee.
  */
-export function mergeHits(library: CourseHit[], api: CourseHit[], limit = 8): CourseHit[] {
+export function mergeHits(library: CourseHit[], api: CourseHit[], limit = 12): CourseHit[] {
   const seen = new Set(library.map((c) => courseKey(c.name, c.tee)));
   const lib = [...library].sort((a, b) => b.uses - a.uses || a.name.localeCompare(b.name));
   const extra = api.filter((c) => !seen.has(courseKey(c.name, c.tee)));
@@ -158,13 +174,16 @@ export function teeSetsFrom(tees: unknown): GolfApiTee[] {
  * Never throws. It runs inside a flatMap over the whole search response, so one course with an
  * unexpected shape used to take every other result down with it and the search looked empty.
  */
-export function hitsFromGolfApi(course: GolfApiCourse): CourseHit[] {
+export function hitsFromGolfApi(course: GolfApiCourse, opts: { needCard?: boolean } = {}): CourseHit[] {
   try {
     const name = (course.course_name || course.club_name || "").trim();
-    if (!name) return [];
+    if (!name || course.id === undefined || course.id === null) return [];
     const club = (course.club_name || "").trim();
     const loc = course.location ?? {};
     const address = [loc.address, loc.city].filter(Boolean).join(", ");
+    const ref = (tee: string) => `golfcourseapi:${course.id}:${tee}`;
+
+    // Full cards first: tee sets that came with hole-by-hole data.
     const out: CourseHit[] = [];
     const seenTee = new Set<string>();
     for (const tee of teeSetsFrom(course.tees)) {
@@ -176,12 +195,61 @@ export function hitsFromGolfApi(course: GolfApiCourse): CourseHit[] {
       const holes = cardFrom(raw);
       if (!holes) continue;
       seenTee.add(key);
-      out.push({ name, club, address, tee: teeName, holes, source: "api", ref: `golfcourseapi:${course.id}:${teeName}`, uses: 0 });
+      out.push({ name, club, address, tee: teeName, holes, source: "api", ref: ref(teeName), uses: 0 });
     }
+    // A card that arrived and failed is broken at the source: the course endpoint would serve the same
+    // one, so offering it as "loads when picked" would only fail later. Summaries are for tees that
+    // came without a card at all.
+    const cameWithCards = teeSetsFrom(course.tees).length > 0;
+    if (out.length || opts.needCard || cameWithCards) return out;
+
+    // Search results carry summaries rather than cards. List the course and its tees anyway; the card
+    // is fetched from the course endpoint when someone picks it.
+    for (const tee of teeSummariesFrom(course.tees)) {
+      const teeName = (tee.tee_name ?? "").trim();
+      const key = teeName.toLowerCase();
+      if (seenTee.has(key)) continue;
+      seenTee.add(key);
+      const n = Number(tee.number_of_holes);
+      const par = Number(tee.par_total);
+      out.push({
+        name,
+        club,
+        address,
+        tee: teeName,
+        holes: [],
+        source: "api",
+        ref: ref(teeName),
+        uses: 0,
+        summary: { holes: n === 9 || n === 18 ? n : null, par: Number.isInteger(par) && par >= 27 && par <= 80 ? par : null },
+      });
+    }
+    // Not even tee names: still worth listing the course itself.
+    if (!out.length) out.push({ name, club, address, tee: "", holes: [], source: "api", ref: ref(""), uses: 0, summary: { holes: null, par: null } });
     return out;
   } catch {
     return [];
   }
+}
+
+/**
+ * Tee summaries from a search result: anything in the tees structure that names a tee, even without
+ * holes. Men's tees are listed before women's because that is how most crews book, and a name that
+ * appears under both is listed once.
+ */
+function teeSummariesFrom(tees: unknown): GolfApiTee[] {
+  if (!tees || typeof tees !== "object") return [];
+  const groups: unknown[] = Array.isArray(tees)
+    ? [tees]
+    : Object.entries(tees as Record<string, unknown>)
+        .sort(([a], [b]) => (a === "male" ? -1 : b === "male" ? 1 : 0))
+        .map(([, v]) => v);
+  const out: GolfApiTee[] = [];
+  for (const group of groups) {
+    const list = Array.isArray(group) ? group : [group];
+    for (const t of list) if (t && typeof t === "object" && typeof (t as GolfApiTee).tee_name === "string") out.push(t as GolfApiTee);
+  }
+  return out;
 }
 
 /**

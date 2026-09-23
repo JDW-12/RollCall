@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CourseHit } from "@/domain/courses";
-import { CourseError, coursePar, courseLabel, holesFromLines } from "@/domain/courses";
+import { CourseError, coursePar, courseLabel, hitDetail, holesFromLines } from "@/domain/courses";
 import type { Hole } from "@/domain/stableford";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconCamera, IconSearch } from "@/components/icons";
@@ -90,7 +90,7 @@ export function CoursePicker({ sessionId, providerOn, scanOn }: { sessionId: str
               <div className="min-w-0">
                 <div className="font-semibold text-sm truncate">{courseLabel(h)}</div>
                 <div className="text-xs text-ink-3 truncate">
-                  {h.holes.length} holes · par {coursePar(h.holes)}
+                  {hitDetail(h)}
                   {h.address ? ` · ${h.address}` : ""}
                   {h.source === "library" ? ` · used ${h.uses}×` : " · course database"}
                 </div>

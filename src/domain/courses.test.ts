@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { courseKey, coursePar, defaultStrokeIndexes, hitsFromGolfApi, holesFromLines, mergeHits, teeSetsFrom, validateHoles, type CourseHit } from "./courses";
+import { courseKey, coursePar, defaultStrokeIndexes, hitDetail, hitsFromGolfApi, holesFromLines, mergeHits, teeSetsFrom, validateHoles, type CourseHit } from "./courses";
 
 const pars18 = "4 4 3 5 4 4 3 4 5 4 3 4 5 4 4 3 4 5";
 const si18 = "7 3 15 1 11 9 17 5 13 8 16 2 10 4 12 18 6 14";
@@ -151,5 +151,62 @@ describe("teeSetsFrom", () => {
     const loop: Record<string, unknown> = {};
     loop.self = loop;
     expect(() => teeSetsFrom(loop)).not.toThrow();
+  });
+});
+
+describe("search results without cards (what golfcourseapi's search really returns)", () => {
+  // From production logs: tees keyed female/male, but no hole-by-hole data on search results.
+  const summary = {
+    id: "kyp6mtch",
+    club_name: "Cottesmore Hotel Golf And Country Club",
+    course_name: "Griffin",
+    location: { address: "Buchan Hill", city: "Crawley", country: "United Kingdom" },
+    tees: {
+      female: [{ tee_name: "Red", par_total: 72, number_of_holes: 18 }],
+      male: [
+        { tee_name: "White", par_total: 71, number_of_holes: 18 },
+        { tee_name: "Yellow", par_total: 71, number_of_holes: 18 },
+        { tee_name: "Red", par_total: 71, number_of_holes: 18 },
+      ],
+    },
+  };
+
+  it("lists every tee, men's first, each name once", () => {
+    const hits = hitsFromGolfApi(summary);
+    expect(hits.map((h) => h.tee)).toEqual(["White", "Yellow", "Red"]);
+    expect(hits[0]).toMatchObject({ name: "Griffin", club: "Cottesmore Hotel Golf And Country Club", source: "api", ref: "golfcourseapi:kyp6mtch:White", holes: [], summary: { holes: 18, par: 71 } });
+  });
+
+  it("gives nothing when a real card is required, so a round never gets an empty card", () => {
+    expect(hitsFromGolfApi(summary, { needCard: true })).toEqual([]);
+  });
+
+  it("still lists the course when the tees don't even carry names", () => {
+    const hits = hitsFromGolfApi({ ...summary, tees: { male: [{}], female: [] } });
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({ name: "Griffin", tee: "", ref: "golfcourseapi:kyp6mtch:", holes: [] });
+  });
+
+  it("ignores a summary's nonsense numbers rather than showing them", () => {
+    const hits = hitsFromGolfApi({ ...summary, tees: { male: [{ tee_name: "White", par_total: 999, number_of_holes: 14 }] } });
+    expect(hits[0].summary).toEqual({ holes: null, par: null });
+  });
+
+  it("prefers full cards when a response has them, and doesn't pad with summaries", () => {
+    const holes = Array.from({ length: 18 }, (_, i) => ({ par: 4, handicap: i + 1 }));
+    const mixed = { ...summary, tees: { male: [{ tee_name: "White", holes }, { tee_name: "Yellow", par_total: 72 }] } };
+    const hits = hitsFromGolfApi(mixed);
+    expect(hits.map((h) => h.tee)).toEqual(["White"]);
+    expect(hits[0].holes).toHaveLength(18);
+  });
+});
+
+describe("hitDetail", () => {
+  it("describes a loaded card, a summary, and a course with nothing yet", () => {
+    const holes = Array.from({ length: 18 }, (_, i) => ({ number: i + 1, par: 4, strokeIndex: i + 1 }));
+    expect(hitDetail({ holes })).toBe("18 holes · par 72");
+    expect(hitDetail({ holes: [], summary: { holes: 18, par: 71 } })).toBe("18 holes · par 71");
+    expect(hitDetail({ holes: [], summary: { holes: 9, par: null } })).toBe("9 holes · card loads when picked");
+    expect(hitDetail({ holes: [] })).toBe("Card loads when picked");
   });
 });

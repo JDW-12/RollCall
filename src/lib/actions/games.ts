@@ -156,7 +156,12 @@ export async function setCourse(_prev: ActionState, fd: FormData): Promise<Actio
     try {
       if (mode === "library" || mode === "api") {
         const picked = await resolveCourseRef(mode, str(fd, "ref"), ctx.user.id);
-        if (!picked) uiError(mode === "library" ? "That course isn't in the library any more." : "Couldn't fetch that course. Try the search again.");
+        if (!picked)
+          uiError(
+            mode === "library"
+              ? "That course isn't in the library any more."
+              : "The course database knows this course but doesn't have its hole-by-hole card. Type the pars in below — it's saved for everyone who plays there after you.",
+          );
         card.holes = picked.holes;
         card.course = picked.course;
       } else if (mode === "manual" || mode === "scan") {

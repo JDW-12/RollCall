@@ -77,10 +77,19 @@ export async function resolveProviderCourse(ref: string): Promise<CourseHit | nu
   if (!key || !m) return null;
   try {
     const res = await fetch(`https://api.golfcourseapi.com/v1/courses/${encodeURIComponent(m[1])}`, { headers: { Authorization: `Key ${key}` }, signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("golfcourseapi course", res.status, await res.text());
+      return null;
+    }
     const body = (await res.json()) as { course?: GolfApiCourse } & GolfApiCourse;
-    const hits = hitsFromGolfApi(body?.course ?? body ?? {});
-    return hits.find((h) => h.tee.toLowerCase() === m[2].toLowerCase()) ?? hits[0] ?? null;
+    const course = body?.course ?? body ?? ({} as GolfApiCourse);
+    // Only a real card will do here: this is what gets written onto the round.
+    const hits = hitsFromGolfApi(course, { needCard: true });
+    if (!hits.length) {
+      describeMiss(`course ${m[1]}`, [course], [course]);
+      return null;
+    }
+    return hits.find((h) => h.tee.toLowerCase() === m[2].toLowerCase()) ?? hits[0];
   } catch (e) {
     console.error("golfcourseapi course fetch failed", e);
     return null;
@@ -174,7 +183,14 @@ function describeMiss(q: string, all: GolfApiCourse[], uk: GolfApiCourse[]): voi
       returned: all.length,
       inUk: uk.length,
       countries: [...new Set(all.map((c) => c.location?.country ?? "?"))].slice(0, 5),
-      sample: first ? { id: first.id, club: first.club_name, course: first.course_name, teesType: Array.isArray(tees) ? "array" : typeof tees, teesKeys: tees && typeof tees === "object" && !Array.isArray(tees) ? Object.keys(tees).slice(0, 6) : undefined, teeSets: teeSetsFrom(tees).length } : null,
+      sample: first ? { id: first.id, club: first.club_name, course: first.course_name, teesType: Array.isArray(tees) ? "array" : typeof tees, teesKeys: tees && typeof tees === "object" && !Array.isArray(tees) ? Object.keys(tees).slice(0, 6) : undefined, teeSets: teeSetsFrom(tees).length, firstTeeKeys: firstTeeKeys(tees) } : null,
     }),
   );
+}
+
+function firstTeeKeys(tees: unknown): string[] | undefined {
+  if (!tees || typeof tees !== "object") return undefined;
+  const group = Array.isArray(tees) ? tees : Object.values(tees as Record<string, unknown>)[0];
+  const tee = Array.isArray(group) ? group[0] : group;
+  return tee && typeof tee === "object" ? Object.keys(tee as object).slice(0, 20) : undefined;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { PlaceHit } from "@/domain/places";
 import type { CourseHit } from "@/domain/courses";
-import { courseLabel, coursePar } from "@/domain/courses";
+import { courseLabel, hitDetail } from "@/domain/courses";
 import { IconGolf, IconPin } from "@/components/icons";
 
 type Hit = PlaceHit & { course?: CourseHit };
@@ -110,7 +110,7 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
       <input type="hidden" name="courseRef" value={course ? `${course.source}:${course.ref}` : ""} />
       {course ? (
         <span className="text-xs text-pitch inline-flex items-center gap-1">
-          <IconGolf size={13} /> Card loads: {courseLabel(course)} · {course.holes.length} holes · par {coursePar(course.holes)}
+          <IconGolf size={13} /> {course.holes.length ? `Card loads: ${courseLabel(course)} · ${hitDetail(course)}` : `Card loads when you save: ${courseLabel(course)}`}
         </span>
       ) : hint ? (
         <span className="text-xs text-ink-3">{hint}</span>
@@ -119,7 +119,7 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
         <ul id={listId} role="listbox" className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-30 mt-1 rounded-md border border-line bg-panel shadow-lg overflow-hidden anim-rise">
           {hits.map((h, i) => (
             <li
-              key={`${h.name}|${h.address}`}
+              key={`${h.course ? `${h.course.source}:${h.course.ref}` : "place"}|${h.name}|${h.address}`}
               role="option"
               aria-selected={i === active}
               onMouseDown={(e) => {
@@ -132,7 +132,7 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
               {h.course ? <IconGolf size={15} className="mt-0.5 text-pitch shrink-0" /> : <IconPin size={15} className="mt-0.5 text-ink-3 shrink-0" />}
               <span className="min-w-0">
                 <span className="font-semibold block truncate">{h.name}</span>
-                <span className="text-xs text-ink-3 block truncate">{h.course ? `${h.course.tee ? `${h.course.tee} tees · ` : ""}${h.course.holes.length} holes · par ${coursePar(h.course.holes)}${h.address ? ` · ${h.address}` : ""}` : h.address}</span>
+                <span className="text-xs text-ink-3 block truncate">{h.course ? `${h.course.tee ? `${h.course.tee} tees · ` : ""}${hitDetail(h.course)}${h.address ? ` · ${h.address}` : ""}` : h.address}</span>
               </span>
             </li>
           ))}
