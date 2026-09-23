@@ -34,13 +34,16 @@ export function CrewShell({ crew, user, active, children, wide = false }: { crew
       <SandboxBanner />
       <header className="sticky top-0 z-20 bg-ground/85 backdrop-blur-md border-b border-line">
         <div className={cls(width, "mx-auto px-4 h-14 flex items-center justify-between gap-3")}>
-          <Link href={`/crew/${crew.slug}`} className="flex items-center gap-2.5 min-w-0">
-            <span className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 text-ink" style={{ background: `oklch(0.45 0.13 ${crew.hue} / 0.55)` }}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* The sport icon is the way out: back to your dashboard and every crew you're in. */}
+            <Link href="/home" aria-label="Your dashboard" title="Your dashboard" className="press w-8 h-8 rounded-md flex items-center justify-center shrink-0 text-ink hover:ring-2 hover:ring-ink-3" style={{ background: `oklch(0.45 0.13 ${crew.hue} / 0.55)` }}>
               <SportIcon sport={crew.sport} size={18} />
-            </span>
-            <span className="display font-bold uppercase text-xl truncate leading-none">{crew.name}</span>
-            <span className="eyebrow hidden sm:inline">{sport.label}</span>
-          </Link>
+            </Link>
+            <Link href={`/crew/${crew.slug}`} className="flex items-center gap-2.5 min-w-0">
+              <span className="display font-bold uppercase text-xl truncate leading-none">{crew.name}</span>
+              <span className="eyebrow hidden sm:inline">{sport.label}</span>
+            </Link>
+          </div>
           <nav className="hidden sm:flex items-center gap-0.5" aria-label="Crew">
             {tabs.map((t) => (
               <Link

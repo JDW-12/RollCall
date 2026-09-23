@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { listCrewsForUser } from "@/lib/queries";
 import { requestCode } from "@/lib/actions/auth";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { SPORTS } from "@/domain/sports";
@@ -16,12 +15,8 @@ import { ChatPreview, HeroCards } from "@/components/hero-cards";
 
 export default async function Landing() {
   const user = await getCurrentUser();
-  // Already in: the link is a way back to the crew, not a sales page. One crew goes straight to its
-  // dashboard; more than one goes to the list of them.
-  if (user) {
-    const crews = await listCrewsForUser(user.id);
-    redirect(crews.length === 1 ? `/crew/${crews[0].slug}` : "/home");
-  }
+  // Already in: the link is a way back in, not a sales page. It opens your dashboard.
+  if (user) redirect("/home");
   return (
     <PlainShell user={user} wide>
       <SignInBox />
@@ -265,7 +260,7 @@ function SignInBox() {
         <h2 id="signin-box" className="text-2xl font-bold uppercase leading-none">
           Sign in
         </h2>
-        <p className="text-sm text-ink-2">No password: we email you a six-digit code and take you to your crew.</p>
+        <p className="text-sm text-ink-2">No password: we email you a six-digit code and take you to your dashboard.</p>
         <p className="text-sm text-ink-3">
           New here?{" "}
           <Link href="/start" className="underline underline-offset-2 text-ink">

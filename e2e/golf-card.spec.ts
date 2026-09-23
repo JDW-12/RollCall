@@ -129,9 +129,15 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(feed).toContainText("scheduled");
   await expect(feed).not.toContainText("is in.");
   await expect(feed).not.toContainText("joined");
-  // Opening the site's front door when already signed in goes straight back to the crew.
+  // Opening the site's front door when already signed in goes to the dashboard, which carries the
+  // crew as a card; the crew header's sport icon leads back there too.
   await org.goto("/");
+  await expect(org).toHaveURL(/\/home$/);
+  await expect(org.getByRole("heading", { name: "Your stats" })).toBeVisible();
+  await org.getByRole("region", { name: "Your crews" }).getByRole("link").first().click();
   await expect(org).toHaveURL(crewUrl);
+  await org.getByRole("link", { name: "Your dashboard" }).click();
+  await expect(org).toHaveURL(/\/home$/);
 
   // A later round: the venue finder on the session form searches the course library, and picking the
   // course there loads the card onto the session with no picker step.

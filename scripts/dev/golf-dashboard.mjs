@@ -125,5 +125,31 @@ await p.setViewportSize({ width: 1100, height: 900 });
 await p.goto(crewUrl);
 await p.waitForTimeout(500);
 await p.screenshot({ path: `${out}/home-wide.png`, fullPage: true });
+
+// A second crew in another sport, so the personal dashboard has more than one card.
+await p.setViewportSize({ width: 420, height: 900 });
+await p.goto(base + "/start");
+if (await p.locator('input[name="organiserName"]').count()) await p.fill('input[name="organiserName"]', "Josh Walker");
+await p.fill('input[name="name"]', "Tuesday FC");
+await p.check('input[name="sport"][value="football"]');
+await p.click('button:has-text("Create crew")');
+await p.waitForURL(/welcome=1/);
+await p.goto(p.url().split("?")[0] + "/sessions/new");
+await p.fill('input[name="title"]', "Tuesday 5s");
+await p.fill('input[name="startsAt"]', londonInput(Date.now() + 2 * 86400000));
+await p.fill('input[name="venueName"]', "Powerleague Shoreditch");
+await p.click('button:has-text("Pin it")');
+await p.waitForURL(/pinned=1/);
+for (const theme of ["dark", "light"]) {
+  await p.goto(base + "/home");
+  await p.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
+  await p.waitForTimeout(500);
+  await p.screenshot({ path: `${out}/dash-${theme}.png`, fullPage: true });
+}
+await p.setViewportSize({ width: 1200, height: 900 });
+await p.goto(base + "/home");
+await p.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+await p.waitForTimeout(500);
+await p.screenshot({ path: `${out}/dash-wide.png`, fullPage: true });
 await browser.close();
 console.log("done", crewUrl);
