@@ -20,6 +20,10 @@ type Props = {
   geo: HoleGeo[] | null;
   center: LatLon | null;
   mapKey: string | null;
+  /** Why there are no hole positions, when there aren't. */
+  whyNoMap?: string | null;
+  /** Organisers: re-run the course lookup now. */
+  retryHref?: string | null;
 };
 
 type Fix = { at: LatLon; accuracy: number } | null;
@@ -29,7 +33,7 @@ type Fix = { at: LatLon; accuracy: number } | null;
  * you walk, the satellite map shows the hole, and the score for each hole is saved as you go so the
  * card is done when you walk off the 18th. The page keeps the screen awake while it's open.
  */
-export function LiveRound({ sessionId, backHref, courseName, holes, strokes: initial, handicap, geo, center, mapKey }: Props) {
+export function LiveRound({ sessionId, backHref, courseName, holes, strokes: initial, handicap, geo, center, mapKey, whyNoMap = null, retryHref = null }: Props) {
   const [strokes, setStrokes] = useState<(number | null)[]>(() => holes.map((_, i) => initial[i] ?? null));
   const firstOpen = strokes.findIndex((s) => s === null);
   const [idx, setIdx] = useState(firstOpen === -1 ? 0 : firstOpen);
@@ -187,8 +191,16 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
         ) : null}
         {gps === "on" && fix ? (
           <div className="absolute left-2 bottom-2 rounded-md bg-black/60 text-white text-[11px] px-2 py-1 max-w-[70%]">
-            GPS ±{Math.round(fix.accuracy)} m{!hg ? " · this hole isn't mapped, tap the green to measure" : ""}
+            GPS ±{Math.round(fix.accuracy)} m{!hg ? ` · ${whyNoMap ?? "this hole isn't mapped, tap the green to measure"}` : ""}
             {!hg && target ? ` · ${toYards(distance(fix.at, target))} yds to target` : ""}
+            {!hg && retryHref ? (
+              <>
+                {" "}
+                <a href={retryHref} className="underline font-semibold">
+                  Look again
+                </a>
+              </>
+            ) : null}
           </div>
         ) : (
           <GpsPrompt state={gps} onStart={startGps} />

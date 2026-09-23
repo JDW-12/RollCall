@@ -14,8 +14,9 @@ export const metadata: Metadata = { title: "Play" };
  * holes and greens come from OpenStreetMap the first time it's played (see lib/course-geo); the map
  * needs a MapTiler key in MAPTILER_KEY, and without one the distances still work.
  */
-export default async function LivePage({ params }: { params: Promise<{ slug: string; id: string }> }) {
+export default async function LivePage({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<{ refresh?: string }> }) {
   const { slug, id } = await params;
+  const { refresh } = await searchParams;
   const { crew, user, isOrganiser } = await requireCrewPage(slug);
   const bundle = await getSessionBundle(id);
   if (!bundle || bundle.session.crewId !== crew.id || !canSeeSession(bundle.session, { id: user.id, isOrganiser })) notFound();
@@ -23,7 +24,17 @@ export default async function LivePage({ params }: { params: Promise<{ slug: str
   const game = bundle.games.find((g) => g.kind === "stableford");
   if (!game) redirect(back);
   const card = JSON.parse(game.data) as StablefordCard;
-  const geo = card.course?.id ? await courseGeo(card.course.id, bundle.session.venueAddress) : null;
+  // An organiser can ask for the course's hole positions to be looked up again straight away.
+  const geo = card.course?.id ? await courseGeo(card.course.id, bundle.session.venueAddress, { force: isOrganiser && refresh === "1" }) : null;
+  const name = card.course?.name ?? "This course";
+  const whyNoMap =
+    geo?.status === "ok"
+      ? null
+      : !card.course?.id
+        ? "this round's card isn't linked to the course library, so hole positions aren't known. Re-pick the course from the search to link it."
+        : geo?.status === "none" && geo.reason === "no-holes"
+          ? `${name}'s holes aren't on OpenStreetMap yet${geo.found?.greens ? ` (${geo.found.greens} greens are)` : ""}. Tap the green on the map to measure.`
+          : `couldn't place ${name} on the map just now.`;
   return (
     <LiveRound
       sessionId={id}
@@ -35,6 +46,8 @@ export default async function LivePage({ params }: { params: Promise<{ slug: str
       geo={geo?.status === "ok" ? geo.holes : null}
       center={geo?.center ?? null}
       mapKey={mapKey()}
+      whyNoMap={whyNoMap}
+      retryHref={isOrganiser && card.course?.id && geo?.status !== "ok" ? `/crew/${slug}/s/${id}/live?refresh=1` : null}
     />
   );
 }

@@ -12,7 +12,13 @@ import { centroid, distance, inPolygon, type Green, type LatLon } from "./geo";
  */
 
 export type HoleGeo = { number: number; par: number | null; tee: LatLon; green: Green; line: LatLon[] };
-export type CourseGeo = { status: "ok"; holes: HoleGeo[]; center: LatLon; source: "osm"; fetchedAt: number } | { status: "none"; center: LatLon | null; fetchedAt: number };
+/**
+ * Why a course has no hole positions: we couldn't place the course at all ("no-location"), or it was
+ * found but OpenStreetMap has no numbered holes there ("no-holes"; `found` counts what was there).
+ */
+export type CourseGeo =
+  | { status: "ok"; holes: HoleGeo[]; center: LatLon; source: "osm"; fetchedAt: number }
+  | { status: "none"; center: LatLon | null; fetchedAt: number; reason?: "no-location" | "no-holes"; found?: { holes: number; greens: number } };
 
 type OsmPoint = { lat: number; lon: number };
 type OsmWay = { type: "way"; id: number; tags?: Record<string, string>; geometry?: OsmPoint[] };
@@ -103,4 +109,10 @@ function nearest(greens: LatLon[][], p: LatLon, within: number): LatLon[] | null
 export function courseCenter(holes: HoleGeo[]): LatLon {
   const all = holes.flatMap((h) => [h.tee, h.green.center]);
   return [all.reduce((a, p) => a + p[0], 0) / all.length, all.reduce((a, p) => a + p[1], 0) / all.length];
+}
+
+/** What an Overpass answer holds, for the log and for saying why a course has no yardages. */
+export function featureCounts(json: OverpassJson): { holes: number; greens: number } {
+  const ways = (json.elements ?? []).filter((e): e is OsmWay => e.type === "way");
+  return { holes: ways.filter((w) => w.tags?.golf === "hole").length, greens: ways.filter((w) => w.tags?.golf === "green").length };
 }
