@@ -1,7 +1,7 @@
 /**
  * Form: what a player actually went round in over their last five completed rounds, as flagsticks
  * standing on the par line. Each bar is strokes over par (or under, hanging below the line), so a 9
- * and an 18 sit on the same scale; the latest round's label gives the gross score golfers quote.
+ * and an 18 sit on the same scale; the latest round is labelled +22 first, the gross beside it.
  *
  * An emphasis chart: the latest round in the fairway accent with its flag up, earlier rounds in the
  * de-emphasis grey (both validated against each theme's panel). One baseline (par), 4px rounded data
@@ -30,7 +30,7 @@ function barPath(x: number, base: number, end: number, w: number, r = 4): string
 const short = (ms: number) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }).format(new Date(ms));
 
 function describe(r: FormRound): string {
-  return `${r.course}, ${short(r.startsAt)}: ${r.gross} (${fmtToPar(r.gross - r.par)}), par ${r.par}${r.holes === 9 ? ", 9 holes" : ""}`;
+  return `${r.course}, ${short(r.startsAt)}: ${fmtToPar(r.gross - r.par)} (${r.gross}), par ${r.par}${r.holes === 9 ? ", 9 holes" : ""}`;
 }
 
 export function FormChart({ rounds }: { rounds: FormRound[] }) {
@@ -73,10 +73,10 @@ export function FormChart({ rounds }: { rounds: FormRound[] }) {
                   <path d={`M${cx + 0.6} ${top - 16} l10 3.4 l-10 3.4 Z`} style={{ fill: "var(--gf-flag)" }} className="gf-flag" />
                   <text x={cx - 6} y={top - 5} textAnchor="end" style={{ fill: "var(--ink)" }}>
                     <tspan className="display" style={{ fontSize: 15, fontWeight: 800 }}>
-                      {r.gross}
+                      {fmtToPar(diff)}
                     </tspan>
                     <tspan className="font-mono" dx={3} style={{ fill: "var(--ink-2)", fontSize: 9 }}>
-                      {fmtToPar(diff)}
+                      {r.gross}
                     </tspan>
                   </text>
                 </g>

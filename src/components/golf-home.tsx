@@ -109,9 +109,9 @@ function Form({ me }: { me: GolfPlayer }) {
           </div>
         </div>
         <div className="text-right leading-none shrink-0 whitespace-nowrap">
-          <div className="display text-3xl font-extrabold">{latest.gross}</div>
+          <div className="display text-3xl font-extrabold">{fmtToPar(latest.gross - latest.par)}</div>
           <div className="eyebrow mt-0.5">
-            {fmtToPar(latest.gross - latest.par)} · par {latest.par}
+            {latest.gross} · par {latest.par}
           </div>
         </div>
       </div>
