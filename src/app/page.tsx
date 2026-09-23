@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { listCrewsForUser } from "@/lib/queries";
+import { requestCode } from "@/lib/actions/auth";
+import { ActionForm, SubmitButton } from "@/components/action-form";
 import { SPORTS } from "@/domain/sports";
 import { PlainShell } from "@/components/shell";
 import { LinkButton, Pill } from "@/components/ui";
@@ -12,8 +16,15 @@ import { ChatPreview, HeroCards } from "@/components/hero-cards";
 
 export default async function Landing() {
   const user = await getCurrentUser();
+  // Already in: the link is a way back to the crew, not a sales page. One crew goes straight to its
+  // dashboard; more than one goes to the list of them.
+  if (user) {
+    const crews = await listCrewsForUser(user.id);
+    redirect(crews.length === 1 ? `/crew/${crews[0].slug}` : "/home");
+  }
   return (
     <PlainShell user={user} wide>
+      <SignInBox />
       {/* Hero */}
       <section className="pt-4 sm:pt-8 pb-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_560px] lg:items-center">
         <div className="flex flex-col gap-6">
@@ -239,5 +250,42 @@ function Demo() {
       </table>
       <p className="text-xs text-ink-3">Example crew. &quot;Turns up&quot; counts confirmed attendance; late drops still pay under the crew&apos;s 24-hour rule.</p>
     </div>
+  );
+}
+
+
+/**
+ * The front door: sign in right at the top, before any of the pitch. Same email-code flow as /signin;
+ * after the code it comes back here, which forwards to the crew.
+ */
+function SignInBox() {
+  return (
+    <section className="surface surface-raised p-4 sm:p-5 mt-2 mb-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,420px)] sm:items-center anim-rise" aria-labelledby="signin-box">
+      <div className="flex flex-col gap-1">
+        <h2 id="signin-box" className="text-2xl font-bold uppercase leading-none">
+          Sign in
+        </h2>
+        <p className="text-sm text-ink-2">No password: we email you a six-digit code and take you to your crew.</p>
+        <p className="text-sm text-ink-3">
+          New here?{" "}
+          <Link href="/start" className="underline underline-offset-2 text-ink">
+            Start a crew
+          </Link>{" "}
+          or open the invite link your organiser sent.
+        </p>
+      </div>
+      <ActionForm action={requestCode}>
+        <input type="hidden" name="next" value="/" />
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+          <label className="flex flex-col gap-1.5 flex-1 min-w-0">
+            <span className="text-sm font-semibold">Email</span>
+            <input name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@example.com" className="text-base" />
+          </label>
+          <SubmitButton pendingText="Sending…" className="min-h-12 shrink-0">
+            Email me a code
+          </SubmitButton>
+        </div>
+      </ActionForm>
+    </section>
   );
 }

@@ -124,9 +124,11 @@ export async function getCrewLedger(crewId: string): Promise<{ entries: schema.L
   };
 }
 
-export async function getFeed(crewId: string, limit = 30): Promise<schema.FeedItem[]> {
+/** The crew's feed, newest first. `kinds` narrows it before the limit, so a filtered feed still fills up. */
+export async function getFeed(crewId: string, limit = 30, kinds?: string[]): Promise<schema.FeedItem[]> {
   const db = await getDb();
-  return db.select().from(schema.feed).where(eq(schema.feed.crewId, crewId)).orderBy(desc(schema.feed.createdAt)).limit(limit);
+  const where = kinds ? and(eq(schema.feed.crewId, crewId), inArray(schema.feed.kind, kinds)) : eq(schema.feed.crewId, crewId);
+  return db.select().from(schema.feed).where(where).orderBy(desc(schema.feed.createdAt)).limit(limit);
 }
 
 /**

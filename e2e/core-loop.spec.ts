@@ -145,6 +145,10 @@ test("organiser + mate: crew → session → RSVP → play → rate → table �
 test("landing, sign-in guard and 404 behave", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("turning up");
+  // Sign-in sits at the very top of the front door for anyone not signed in.
+  const signIn = page.getByRole("region", { name: "Sign in" });
+  await expect(signIn.getByRole("textbox", { name: "Email" })).toBeVisible();
+  await expect(signIn.getByRole("button", { name: "Email me a code" })).toBeVisible();
   await page.goto("/home");
   await expect(page).toHaveURL(/\/signin\?next=(%2F|\/)home/);
   const res = await page.goto("/crew/does-not-exist");

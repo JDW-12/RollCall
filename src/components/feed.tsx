@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { FeedItem } from "@/db/schema";
 import type { Member } from "@/lib/queries";
-import { relativeDay, fmtTime } from "@/lib/format";
-import { IconCheck, IconClock, IconFlame, IconPin, IconWhistle, IconX } from "./icons";
+import { relativeDay, fmtTime, fmtToPar } from "@/lib/format";
+import { IconCheck, IconClock, IconFlame, IconGolf, IconPin, IconWhistle, IconX } from "./icons";
 import { cls } from "./ui";
 
-type Glyph = "pin" | "check" | "x" | "flame" | "whistle" | "clock";
+type Glyph = "pin" | "check" | "x" | "flame" | "whistle" | "clock" | "golf";
 
 const GLYPH: Record<Glyph, { Icon: typeof IconPin; tone: string }> = {
   pin: { Icon: IconPin, tone: "bg-pitch-soft text-pitch" },
@@ -14,14 +14,17 @@ const GLYPH: Record<Glyph, { Icon: typeof IconPin; tone: string }> = {
   flame: { Icon: IconFlame, tone: "bg-card-soft text-card-ink" },
   whistle: { Icon: IconWhistle, tone: "bg-ground-2 text-ink-2" },
   clock: { Icon: IconClock, tone: "bg-ground-2 text-ink-2" },
+  golf: { Icon: IconGolf, tone: "bg-pitch-soft text-pitch" },
 };
 
-export function Feed({ items, members, slug }: { items: FeedItem[]; members: Member[]; slug: string }) {
+/** `golf` words the feed for a golf crew: rounds are scheduled, not pinned. */
+export function Feed({ items, members, slug, golf = false }: { items: FeedItem[]; members: Member[]; slug: string; golf?: boolean }) {
   const name = (id?: unknown) => (typeof id === "string" ? (members.find((m) => m.id === id)?.name ?? "Someone") : "Someone");
   const lines = items
     .map((it) => {
       const p = safeJson(it.payload);
-      const link = it.sessionId ? `/crew/${slug}/s/${it.sessionId}` : null;
+      // A posted round opens that round on the leader board; everything else opens the session.
+      const link = !it.sessionId ? null : it.kind === "round_posted" ? `/crew/${slug}/table?round=${it.sessionId}` : `/crew/${slug}/s/${it.sessionId}`;
       let text: string | null = null;
       let glyph: Glyph = "whistle";
       switch (it.kind) {
@@ -34,9 +37,20 @@ export function Feed({ items, members, slug }: { items: FeedItem[]; members: Mem
           glyph = "check";
           break;
         case "session_pinned":
-          text = `${name(p.by)} pinned ${String(p.title ?? "a session")}.`;
+          text = golf
+            ? `${name(p.by)} scheduled ${String(p.title ?? "a round")}${typeof p.startsAt === "number" ? ` for ${relativeDay(new Date(p.startsAt))} ${fmtTime(new Date(p.startsAt))}` : ""}.`
+            : `${name(p.by)} pinned ${String(p.title ?? "a session")}.`;
           glyph = "pin";
           break;
+        case "round_posted": {
+          // Built from the card (see domain/golf-feed): the score against par of the holes played.
+          const gross = Number(p.gross ?? 0);
+          const where = p.course ? ` at ${String(p.course)}` : "";
+          const thru = Number(p.holesPlayed ?? 0) < Number(p.holes ?? 0) ? ` (thru ${Number(p.holesPlayed)})` : "";
+          text = `${name(p.userId)} posted ${fmtToPar(gross - Number(p.par ?? 0))}${where}${thru} · ${gross} strokes, ${Number(p.stableford ?? 0)} pts.`;
+          glyph = "golf";
+          break;
+        }
         case "joined_session":
           text = `${name(p.userId)} is in.`;
           glyph = "check";
@@ -87,7 +101,7 @@ export function Feed({ items, members, slug }: { items: FeedItem[]; members: Mem
       return text ? { id: it.id, text, link, at: it.createdAt, glyph } : null;
     })
     .filter((x): x is { id: string; text: string; link: string | null; at: Date; glyph: Glyph } => x !== null);
-  if (lines.length === 0) return <p className="text-sm text-ink-3">Nothing yet. Pin a session to get going.</p>;
+  if (lines.length === 0) return <p className="text-sm text-ink-3">{golf ? "Nothing yet. Schedule a round and it shows up here, then every card that's posted." : "Nothing yet. Pin a session to get going."}</p>;
   return (
     <ol className="flex flex-col divide-y divide-line-2">
       {lines.map((l) => {

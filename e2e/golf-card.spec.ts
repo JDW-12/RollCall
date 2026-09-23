@@ -121,6 +121,17 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(yours).toContainText(course);
   await expect(yours).toContainText("Stableford");
   await expect(org.getByRole("region", { name: "The crew" })).toContainText(`9 pts at ${course}`);
+  // The golf feed is only rounds scheduled and rounds posted: no RSVP or join chatter.
+  const feed = org.getByRole("region", { name: "Feed" });
+  await expect(feed).toContainText(`posted`);
+  await expect(feed).toContainText(`at ${course} (thru 3)`);
+  await expect(feed).toContainText("9 pts");
+  await expect(feed).toContainText("scheduled");
+  await expect(feed).not.toContainText("is in.");
+  await expect(feed).not.toContainText("joined");
+  // Opening the site's front door when already signed in goes straight back to the crew.
+  await org.goto("/");
+  await expect(org).toHaveURL(crewUrl);
 
   // A later round: the venue finder on the session form searches the course library, and picking the
   // course there loads the card onto the session with no picker step.

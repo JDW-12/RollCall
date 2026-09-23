@@ -1,10 +1,12 @@
 import { appUrl } from "@/lib/env";
 import { nowMs } from "@/lib/clock";
 import type { Metadata } from "next";
-import type { Rsvp, Session } from "@/db/schema";
+import type { FeedItem, Rsvp, Session } from "@/db/schema";
 import Link from "next/link";
 import { requireCrewPage } from "@/lib/access";
-import { getCrewTable, getFeed, getNextSession, listSessions, rsvpsFor } from "@/lib/queries";
+import { getCrewTable, getFeed, getNextSession, golfRounds, listSessions, rsvpsFor } from "@/lib/queries";
+import { postedRounds } from "@/domain/golf-feed";
+import type { Round } from "@/domain/golf-stats";
 import { sportOf } from "@/domain/sports";
 import { summarise } from "@/domain/rsvp";
 import { previewShare } from "@/domain/money";
@@ -33,7 +35,16 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
   const { welcome } = await searchParams;
   const ctx = await requireCrewPage(slug);
   const { crew, user, isOrganiser } = ctx;
-  const [next, all, feed, table] = await Promise.all([getNextSession(crew.id), listSessions(crew.id), getFeed(crew.id, 12), getCrewTable(crew)]);
+  // A golf crew's feed is only rounds scheduled and rounds posted; the chatter (RSVPs, joins) stays off it.
+  const golfCrew = crew.sport === "golf";
+  const [next, all, rawFeed, table, rounds] = await Promise.all([
+    getNextSession(crew.id),
+    listSessions(crew.id),
+    getFeed(crew.id, 12, golfCrew ? ["session_pinned"] : undefined),
+    getCrewTable(crew),
+    golfCrew ? golfRounds(crew.id) : Promise.resolve([]),
+  ]);
+  const feed = golfCrew ? golfFeed(rawFeed, rounds, all, crew.id) : rawFeed;
   const now = nowMs();
   const upcoming = all.filter((s) => s.status === "open" && s.id !== next?.id && s.startsAt.getTime() > now).slice(0, 3);
   const needsConfirm = all.filter((s) => s.status === "open" && s.startsAt.getTime() + s.durationMin * 60_000 < now);
@@ -187,12 +198,12 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
       </section>
       )}
 
-      <section className="mt-8 flex flex-col gap-3">
+      <section className="mt-8 flex flex-col gap-3" aria-label="Feed">
         <div>
           <Eyebrow>Feed</Eyebrow>
           <h2 className="text-2xl font-bold uppercase">Latest</h2>
         </div>
-        <Feed items={feed} members={table.members} slug={crew.slug} />
+        <Feed items={feed} members={table.members} slug={crew.slug} golf={golf} />
       </section>
     </CrewShell>
   );
@@ -261,4 +272,21 @@ function Poster({ session, rsvps, members, slug, myId, organiser, now }: { sessi
       ) : null}
     </Panel>
   );
+}
+
+/**
+ * Golf feed: rounds scheduled (minus any since cancelled) and every card posted, newest first. The
+ * posted rounds come off the cards themselves, so they carry today's score, corrections included.
+ */
+function golfFeed(pinned: FeedItem[], rounds: Round[], sessions: Session[], crewId: string): FeedItem[] {
+  const cancelled = new Set(sessions.filter((s) => s.status === "cancelled").map((s) => s.id));
+  const posted: FeedItem[] = postedRounds(rounds).map((r) => ({
+    id: `posted:${r.sessionId}:${r.userId}`,
+    crewId,
+    sessionId: r.sessionId,
+    kind: "round_posted",
+    payload: JSON.stringify(r),
+    createdAt: new Date(r.at),
+  }));
+  return [...pinned.filter((f) => !f.sessionId || !cancelled.has(f.sessionId)), ...posted].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 12);
 }
