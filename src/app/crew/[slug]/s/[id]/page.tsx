@@ -90,6 +90,10 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
   const shareWhat: "recap" | "session" = session.status === "played" ? "recap" : "session";
   const share = previewShare(session.costMode, session.costPence, sum.in);
   const game = (kind: string) => games.find((g) => g.kind === kind);
+  // Golf play mode sits at the top of the round, not buried in the card: GPS yardages and live scoring.
+  const golfCard = session.sport === "golf" ? game("stableford") : undefined;
+  const hasCourse = !!golfCard && !!(JSON.parse(golfCard.data) as { course?: unknown }).course;
+  const playLive = session.sport === "golf" && session.status !== "cancelled" && inRows.some((r) => r.userId === user.id);
   const attended = attendance.filter((a) => a.attended);
   const noShows = attendance.length - attended.length;
   const iPlayed = attended.some((a) => a.userId === user.id);
@@ -194,6 +198,15 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
               </span>
             ) : null}
           </div>
+          {playLive ? (
+            hasCourse ? (
+              <LinkButton href={`/crew/${crew.slug}/s/${session.id}/live`} className="min-h-12 text-base w-full sm:w-auto">
+                Play live · GPS yardages
+              </LinkButton>
+            ) : (
+              <p className="text-sm text-ink-2">{isOrganiser ? "Pick the course on the card below to switch on play mode and GPS yardages." : "Play mode and GPS yardages switch on once the organiser picks the course."}</p>
+            )
+          ) : null}
           {picked ? (
             <p className="text-sm text-ink-2">
               <span className="eyebrow mr-1.5">Invite only</span>

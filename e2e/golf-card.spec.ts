@@ -141,7 +141,7 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
 
   // Play mode: opens on the first hole without a score, and saving a hole moves on and lands on the card.
   await org.goto(sessionUrl);
-  await org.getByRole("link", { name: /Play live/ }).click();
+  await org.getByRole("link", { name: /Play live/ }).first().click();
   await expect(org).toHaveURL(/\/live$/);
   await expect(org.getByText("Hole 2", { exact: true })).toBeVisible();
   await expect(org.getByText("Satellite map isn't switched on yet", { exact: false })).toBeVisible();

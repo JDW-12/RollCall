@@ -40,9 +40,9 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
           {card.holes.length} holes · par {card.holes.reduce((a, h) => a + h.par, 0)}
         </span>
       </div>
-      {/* Play mode: GPS yardages and hole-by-hole scoring, for anyone in the round once there's a course. */}
+      {/* Play mode is also offered at the top of the round page; this is the one by the card. */}
       {liveHref && game && card.course && playerIds.includes(myId) ? (
-        <LinkButton href={liveHref} className="min-h-12 text-base">
+        <LinkButton href={liveHref} variant="secondary" className="min-h-11">
           Play live · GPS yardages
         </LinkButton>
       ) : null}
