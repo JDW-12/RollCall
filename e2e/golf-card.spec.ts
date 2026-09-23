@@ -52,10 +52,9 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(org.getByText("Typed card")).toBeVisible();
   await expect(org.getByText("9 holes · par 36").first()).toBeVisible();
   await org.click('button:has-text("Use this card")');
-  // The picker folds away once a course is set; the card line above the table says which.
-  const cardLine = org.locator("p", { hasText: "Card:" });
-  await expect(cardLine).toContainText(`${course} · White tees`);
-  await expect(cardLine).toContainText("from the course library");
+  // The picker folds away once a course is set, and the round is headed by the course, not the format.
+  await expect(org.getByRole("heading", { name: course })).toBeVisible();
+  await expect(org.getByText("White tees · Stableford")).toBeVisible();
 
   // The player's card now has nine holes with the typed pars.
   const yourCard = org.locator("details", { hasText: "Your card" });
@@ -75,7 +74,7 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(yourCard.locator("li", { hasText: "SI 9" })).toContainText("Birdie");
   await yourCard.locator('input[aria-label="Longest drive in yards"]').fill("250");
   await yourCard.locator('input[aria-label="Balls lost"]').fill("2");
-  await yourCard.locator('button:has-text("Save card")').click();
+  await yourCard.getByRole("button", { name: "Save", exact: true }).click();
   // The card folds away once saved; the leaderboard above it shows the result and the round highlights.
   const table = org.locator("table", { hasText: "Player" });
   await expect(table.locator("tbody tr").first()).toContainText("Josh Test");
@@ -88,21 +87,52 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(highlights).toContainText("Balls donated");
 
   // The player page turns the round into golf stats and a golf-flavoured card.
+  const sessionUrl = org.url().split("?")[0];
+  const crewUrl = sessionUrl.replace(/\/s\/.*$/, "");
   const playerLink = await org.locator('a[href*="/players/"]').first().getAttribute("href", { timeout: 3000 }).catch(() => null);
   if (playerLink) {
     await org.goto(playerLink);
     await expect(org.getByText("Longest drive")).toBeVisible();
     await expect(org.locator("text=HCP")).toBeVisible();
-    await org.goBack();
+    // Golf is rated on the card, never on turning up.
+    await expect(org.getByText("Sick note")).toHaveCount(0);
+    await expect(org.getByText("Turns up")).toHaveCount(0);
+    await org.goto(sessionUrl);
   }
+
+  // Submitting the round saves it and lands on the leaderboard, showing what it earned.
+  const submitCard = org.locator("details", { hasText: "Your card" });
+  await submitCard.locator("summary").click();
+  await submitCard.getByRole("button", { name: "Submit round" }).click();
+  await expect(org).toHaveURL(/\/table\?round=/);
+  await expect(org.getByText("Round submitted")).toBeVisible();
+  await expect(org.getByText("You scored")).toBeVisible();
+  await expect(org.getByText("9 Stableford (3 of 9 holes) + 0 from votes")).toBeVisible();
+  // Golf's board has no attendance columns or penalties.
+  await expect(org.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
+  await expect(org.getByText("Nothing for turning up.", { exact: false })).toBeVisible();
+  await expect(org.locator("th", { hasText: "Turns up" })).toHaveCount(0);
+
+  // The home dashboard carries your card and your latest round.
+  await org.goto(crewUrl);
+  await expect(org.getByRole("heading", { name: "Your card" })).toBeVisible();
+  const yours = org.getByRole("region", { name: "Your card" });
+  await expect(yours).toContainText("Latest round");
+  await expect(yours).toContainText(course);
+  await expect(yours).toContainText("Stableford");
+  await expect(org.getByRole("region", { name: "The crew" })).toContainText(`9 pts at ${course}`);
 
   // A later round: the venue finder on the session form searches the course library, and picking the
   // course there loads the card onto the session with no picker step.
-  await org.goto(org.url().replace(/\/s\/.*$/, ""));
+  await org.goto(crewUrl);
   await org.click('a:has-text("Pin a session")');
   await org.check('input[name="sport"][value="golf"]');
   await org.fill('input[name="title"]', "Sunday medal");
   await org.fill('input[name="startsAt"]', londonInput(Date.now() + 5 * 60 * 60_000));
+  // Tapping a recent venue brings the card it was last played on: no second search for the club.
+  await org.locator('[aria-label="Recent and suggested venues"] button', { hasText: "E2E Links" }).click();
+  await expect(org.getByText(`Card loads: ${course} · White tees`)).toBeVisible();
+  await org.fill('input[name="venueName"]', "");
   await org.locator('input[name="venueName"]').pressSequentially(`Links ${stamp}`, { delay: 30 });
   const option = org.locator('[role="option"]', { hasText: course });
   await expect(option).toBeVisible();
@@ -112,7 +142,7 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await org.fill('input[name="capacity"]', "4");
   await org.click('button:has-text("Pin it")');
   await expect(org).toHaveURL(/\/s\/[a-z0-9]+\?pinned=1/);
-  await expect(org.locator("p", { hasText: "Card:" })).toContainText(`${course} · White tees`);
+  await expect(org.getByRole("heading", { name: course })).toBeVisible();
   await expect(org.getByText("9 holes · par 36").first()).toBeVisible();
 
   // Organiser corrects hole 1 to a par 5: the session card and the library copy both change.
@@ -145,7 +175,7 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   expect(mine[0].holes[0].par).toBe(4);
 
   // The crew can choose its own things to vote on; the rate page and cards follow.
-  await org.goto(org.url().replace(/\/s\/.*$/, "/settings"));
+  await org.goto(`${crewUrl}/settings`);
   const votes = org.locator("form[data-ratings-form]");
   await votes.locator('input[aria-label="Vote 2 label"]').fill("Best putter");
   await votes.locator('input[aria-label="Vote 2 card stat"]').fill("PUT");

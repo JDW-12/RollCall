@@ -158,7 +158,7 @@ export async function updateRatings(_prev: ActionState, fd: FormData): Promise<A
     const drafts = Array.from({ length: MAX_RATINGS }, (_, i) => ({ label: str(fd, `label_${i}`), prompt: str(fd, `prompt_${i}`), stat: str(fd, `stat_${i}`) }));
     let cats;
     try {
-      cats = buildRatings(drafts);
+      cats = buildRatings(drafts, crew.sport);
     } catch (e) {
       if (e instanceof RatingsError) uiError(e.message);
       throw e;

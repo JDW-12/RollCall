@@ -45,3 +45,43 @@ export function seasonAwards(rows: TableRow[], categories: RatingCategory[], min
   }
   return awards;
 }
+
+/**
+ * Golf's season awards. Same shape as the team awards so the page draws them the same way, but won on
+ * the card and the votes: no iron man, no streaks, no sick notes. Ties go to the higher-placed player
+ * on the golf leaderboard, so the champion and the awards never disagree.
+ */
+export function golfSeasonAwards(
+  table: { userId: string; points: number; rounds: number }[],
+  stats: Map<string, { best: { points: number; title: string } | null; birdies: number; longestDrive: { yards: number; title: string } | null; ballsLost: number }>,
+  votes: { category: string; rateeId: string }[],
+  categories: RatingCategory[],
+): Award[] {
+  const eligible = table.filter((r) => r.rounds > 0 || r.points > 0);
+  if (!eligible.length) return [];
+  const awards: Award[] = [];
+  const pick = (score: (userId: string) => number): { userId: string; value: number } | null => {
+    let best: { userId: string; value: number } | null = null;
+    for (const r of eligible) {
+      const v = score(r.userId);
+      if (v > 0 && (!best || v > best.value)) best = { userId: r.userId, value: v };
+    }
+    return best;
+  };
+  const champion = eligible[0];
+  if (champion.points > 0) awards.push({ key: "champion", label: "Champion", blurb: "Top of the leaderboard: Stableford points plus the crew's votes.", userId: champion.userId, value: champion.points, unit: "pts", tone: "pitch" });
+  const top = categories[0];
+  if (top) {
+    const w = pick((id) => votes.filter((v) => v.rateeId === id && v.category === top.key).length);
+    if (w) awards.push({ key: "player", label: `${top.label} of the season`, blurb: "Voted for by the people who were out there with them.", userId: w.userId, value: w.value, unit: "votes", tone: "pitch" });
+  }
+  const round = pick((id) => stats.get(id)?.best?.points ?? 0);
+  if (round) awards.push({ key: "round", label: "Round of the season", blurb: `The best card of the year${stats.get(round.userId)?.best?.title ? `, at ${stats.get(round.userId)!.best!.title}` : ""}.`, userId: round.userId, value: round.value, unit: "pts", tone: "card" });
+  const birdies = pick((id) => stats.get(id)?.birdies ?? 0);
+  if (birdies) awards.push({ key: "birdies", label: "Birdie machine", blurb: "Birdies or better, all season.", userId: birdies.userId, value: birdies.value, unit: "birdies", tone: "pitch" });
+  const drive = pick((id) => stats.get(id)?.longestDrive?.yards ?? 0);
+  if (drive) awards.push({ key: "drive", label: "Big hitter", blurb: "The longest drive anyone wrote down.", userId: drive.userId, value: drive.value, unit: "yds", tone: "ink" });
+  const lost = pick((id) => stats.get(id)?.ballsLost ?? 0);
+  if (lost) awards.push({ key: "lost", label: "Balls donated", blurb: "Generous to the lakes and the long grass.", userId: lost.userId, value: lost.value, unit: "balls", tone: "red" });
+  return awards;
+}

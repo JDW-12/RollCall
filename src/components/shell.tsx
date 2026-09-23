@@ -18,8 +18,10 @@ const baseTabs = [
 
 /** Sports played against another club get a League tab; a gym crew has nothing to put in it. */
 function tabsFor(sportKey: string) {
-  if (!sportOf(sportKey).finders.length) return baseTabs;
-  return [...baseTabs.slice(0, 3), { key: "league", label: "League", Icon: IconFlag }, ...baseTabs.slice(3)];
+  // Golf's table is a Stableford leaderboard, not an attendance table, so it says so on the tab.
+  const base = sportKey === "golf" ? baseTabs.map((t) => (t.key === "table" ? { ...t, label: "Board" } : t)) : baseTabs;
+  if (!sportOf(sportKey).finders.length) return base;
+  return [...base.slice(0, 3), { key: "league", label: "League", Icon: IconFlag }, ...base.slice(3)];
 }
 
 export function CrewShell({ crew, user, active, children, wide = false }: { crew: Crew; user: User; active: string; children: ReactNode; wide?: boolean }) {

@@ -3,9 +3,8 @@ import { findCrewBySlug } from "@/lib/access";
 import { getCrewTable } from "@/lib/queries";
 import { sportOf } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
-import { golfStats } from "@/domain/golf-stats";
 import { golfSlots } from "@/components/player-card";
-import { golfRounds } from "@/lib/queries";
+import { golfPlayers } from "@/lib/golf-card";
 import { initials } from "@/lib/format";
 import { OG, OG_MARK_PATH, ogFonts, ogTier } from "@/lib/og";
 
@@ -37,8 +36,11 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   }
   const sport = sportOf(crew.sport);
   const cats = ratingsFor(crew.sport, crew.ratings);
-  const rank = table.rows.findIndex((r) => r.userId === userId) + 1;
-  const tier = ogTier(row.card.overall);
+  // Golf is scored on the card and the votes: rank, points and rating all come from the golf leaderboard.
+  const golf = sport.games.includes("stableford") ? (await golfPlayers(crew)).player(userId) : null;
+  const rank = golf ? golf.rank : table.rows.findIndex((r) => r.userId === userId) + 1;
+  const overall = golf ? golf.card.overall : row.card.overall;
+  const tier = ogTier(overall, !!golf);
   const elite = tier === "Elite";
 
   // The player's own colour as the card ground, in hsl because satori cannot read oklch.
@@ -51,8 +53,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const avatarInk = `hsl(${h} 60% 88%)`;
 
   const label = { fontSize: 22, letterSpacing: 4, textTransform: "uppercase" as const, fontWeight: 700 };
-  const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
-  const stats: [string, number][] = golf ? golfSlots({ handicap: golf.handicap, avg: golf.avg, best: golf.best?.points ?? null, birdies: golf.results.birdie + golf.results.eagle + golf.results.albatross + golf.results.holeInOne, wins: golf.wins, rounds: golf.rounds }, row.points) : [
+  const stats: [string, number][] = golf ? golfSlots(golf.card, golf.row.points) : [
     ["TRN", row.card.turnsUp],
     ["FRM", row.card.form],
     [cats[0].stat, row.card.votes],
@@ -97,7 +98,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", fontSize: 148, fontWeight: 800, lineHeight: 0.85, letterSpacing: -3 }}>{row.card.overall}</div>
+                  <div style={{ display: "flex", fontSize: 148, fontWeight: 800, lineHeight: 0.85, letterSpacing: -3 }}>{overall}</div>
                   <div style={{ display: "flex", ...label, fontSize: 20, opacity: 0.8, marginTop: 10 }}>{tier}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>

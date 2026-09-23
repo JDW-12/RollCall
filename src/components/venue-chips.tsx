@@ -16,7 +16,8 @@ export function VenueChips({ venues }: { venues: VenueSuggestion[] }) {
       setter?.call(name, v.name);
       name.dispatchEvent(new Event("input", { bubbles: true }));
       // Tell the typeahead this value is a pick, not a search, so it doesn't open a dropdown for it.
-      name.dispatchEvent(new CustomEvent("rc:venue-picked", { bubbles: true, detail: v.name }));
+      // A golf venue brings the course card it was last played on, so the scorecard is set up too.
+      name.dispatchEvent(new CustomEvent("rc:venue-picked", { bubbles: true, detail: { name: v.name, course: v.course ?? null } }));
     }
     if (addr && v.address) addr.value = v.address;
     name?.focus();
@@ -24,7 +25,7 @@ export function VenueChips({ venues }: { venues: VenueSuggestion[] }) {
   return (
     <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1 pb-1" aria-label="Recent and suggested venues">
       {venues.map((v) => (
-        <button key={v.name} type="button" onClick={() => pick(v)} className="press shrink-0 rounded-full border border-line bg-panel-2 px-3 h-8 text-xs font-semibold whitespace-nowrap hover:border-ink-3">
+        <button key={v.name} type="button" onClick={() => pick(v)} title={v.course ? `Loads the ${v.course.label} card` : undefined} className="press shrink-0 rounded-full border border-line bg-panel-2 px-3 h-8 text-xs font-semibold whitespace-nowrap hover:border-ink-3">
           {v.name}
           {v.count > 0 ? <span className="text-ink-3 font-normal"> · {v.count}</span> : null}
         </button>

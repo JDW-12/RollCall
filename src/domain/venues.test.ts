@@ -15,3 +15,26 @@ describe("venueSuggestions", () => {
     expect(s.length).toBeLessThanOrEqual(8);
   });
 });
+
+describe("golf venues carry their course card", () => {
+  it("keeps the most recent course played at a venue, so the chip sets up the scorecard", () => {
+    const [top] = venueSuggestions("golf", [
+      { venueName: "Cottesmore", venueAddress: "RH11 9AT", course: { id: "c2", name: "Griffin", tee: "Yellow" } },
+      { venueName: "Cottesmore", venueAddress: "", course: { id: "c1", name: "Griffin", tee: "White" } },
+    ]);
+    expect(top).toMatchObject({ name: "Cottesmore", count: 2, course: { ref: "library:c2", label: "Griffin · Yellow tees" } });
+  });
+
+  it("fills a course in from an older round when the newest had none", () => {
+    const [top] = venueSuggestions("golf", [
+      { venueName: "Cottesmore", venueAddress: "", course: null },
+      { venueName: "Cottesmore", venueAddress: "", course: { id: "c1", name: "Griffin", tee: "" } },
+    ]);
+    expect(top.course).toEqual({ ref: "library:c1", label: "Griffin" });
+  });
+
+  it("leaves non-golf and curated venues without one", () => {
+    const list = venueSuggestions("golf", []);
+    expect(list.every((v) => !v.course)).toBe(true);
+  });
+});

@@ -18,6 +18,8 @@ export type StablefordCard = {
   strokes: Record<string, (number | null)[]>;
   /** userId -> longest drive, balls lost. Optional on older cards. */
   extras?: Record<string, RoundExtras>;
+  /** userId -> when they submitted their round. A submitted card can still be corrected. */
+  submitted?: Record<string, number>;
 };
 
 export function shotsOnHole(handicap: number, strokeIndex: number, holeCount = 18): number {

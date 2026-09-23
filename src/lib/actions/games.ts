@@ -2,6 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getDb, schema } from "@/db/client";
 import { requireCrewAction } from "@/lib/access";
 import { newId } from "@/lib/ids";
@@ -136,8 +137,16 @@ export async function saveStableford(_prev: ActionState, fd: FormData): Promise<
         ballsLost: lost === "" ? null : Math.max(0, Math.min(60, Number(lost) || 0)),
       };
     }
+    // Submitting is saving plus "I'm done": it marks the card and takes the player to the leaderboard.
+    const submit = mode !== "holes" && str(fd, "submit") === "1";
+    if (submit) {
+      if (!(card.strokes[targetUser] ?? []).some((x) => x !== null)) uiError("Put at least one hole in before you submit the round.");
+      card.submitted ??= {};
+      card.submitted[targetUser] = Date.now();
+    }
     await upsertGame(bundle.session.id, "stableford", card);
-    revalidatePath(`/crew/${ctx.crew.slug}/s/${bundle.session.id}`);
+    revalidatePath(`/crew/${ctx.crew.slug}`, "layout");
+    if (submit) redirect(`/crew/${ctx.crew.slug}/table?round=${bundle.session.id}${targetUser !== ctx.user.id ? `&player=${targetUser}` : ""}`);
     return { ok: true, message: "Card saved." };
   });
 }

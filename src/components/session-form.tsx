@@ -15,6 +15,17 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
   const chosen = session?.sport ?? defaultSport;
   const nextWeek = new Date(nowMs() + 7 * 86_400_000);
   nextWeek.setUTCMinutes(0, 0, 0);
+  const golf = sport.key === "golf";
+  const when = (
+    <div className="grid grid-cols-2 gap-3">
+      <Field label={golf ? "Tee time" : "When"}>
+        <input name="startsAt" type="datetime-local" required defaultValue={toLocalInput(session?.startsAt ?? nextWeek)} />
+      </Field>
+      <Field label="Length (min)">
+        <input name="durationMin" type="number" min={15} max={720} step={5} inputMode="numeric" defaultValue={session?.durationMin ?? sport.defaultDurationMin} />
+      </Field>
+    </div>
+  );
   return (
     <>
       <Block eyebrow="What" className="anim-rise">
@@ -78,21 +89,26 @@ export function SessionFields({ defaultSport, session, crewLateDropHours, venues
         </Block>
       ) : null}
 
-      <Block eyebrow="When and where" className="anim-rise-2">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="When">
-            <input name="startsAt" type="datetime-local" required defaultValue={toLocalInput(session?.startsAt ?? nextWeek)} />
+      {golf ? (
+        // Golf leads with the course: picking it here sets up the scorecard, so the round is ready to play.
+        <Block eyebrow="Where and when" className="anim-rise-2">
+          <VenueChips venues={venues} />
+          <VenueSearch defaultValue={session?.venueName ?? ""} label="Golf course" placeholder="Search for your club" hint="Pick the course and tees and the scorecard is set up for you." />
+          <Field label="Address or postcode" hint="Filled in from the club. Shows on the share card.">
+            <input name="venueAddress" maxLength={120} defaultValue={session?.venueAddress ?? ""} autoComplete="off" />
           </Field>
-          <Field label="Length (min)">
-            <input name="durationMin" type="number" min={15} max={720} step={5} inputMode="numeric" defaultValue={session?.durationMin ?? sport.defaultDurationMin} />
+          {when}
+        </Block>
+      ) : (
+        <Block eyebrow="When and where" className="anim-rise-2">
+          {when}
+          <VenueChips venues={venues} />
+          <VenueSearch defaultValue={session?.venueName ?? ""} hint={sport.venueHint} />
+          <Field label="Address or postcode" hint="Optional. Shows on the share card.">
+            <input name="venueAddress" maxLength={120} defaultValue={session?.venueAddress ?? ""} autoComplete="off" />
           </Field>
-        </div>
-        <VenueChips venues={venues} />
-        <VenueSearch defaultValue={session?.venueName ?? ""} hint={sport.venueHint} />
-        <Field label="Address or postcode" hint="Optional. Shows on the share card.">
-          <input name="venueAddress" maxLength={120} defaultValue={session?.venueAddress ?? ""} autoComplete="off" />
-        </Field>
-      </Block>
+        </Block>
+      )}
 
       <Block eyebrow="Money and spots" className="anim-rise-3">
         <div className="grid grid-cols-2 gap-3">

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireCrewPage } from "@/lib/access";
-import { getCrewTable, getSessionBundle, listSessions } from "@/lib/queries";
+import { getCrewTable, getSessionBundle, golfLeaderboardData, listSessions } from "@/lib/queries";
+import { currentRound, golfRoundSummary, golfTable } from "@/domain/golf-table";
+import { fmtDay } from "@/lib/format";
 import type { RatingCategory } from "@/domain/sports";
 import { ratingsFor } from "@/domain/ratings";
 import { POINTS, turnUpRate, type TableRow } from "@/domain/table";
@@ -70,7 +72,7 @@ function Streak({ n, className }: { n: number; className?: string }) {
   );
 }
 
-function Podium({ rows, members, slug }: { rows: TableRow[]; members: Member[]; slug: string }) {
+function Podium({ rows, members, slug }: { rows: { userId: string; points: number }[]; members: Member[]; slug: string }) {
   const top = rows.slice(0, 3).map((r) => ({ r, m: members.find((x) => x.id === r.userId) }));
   // Centre is first. Second on the left, third on the right.
   const order = [1, 0, 2].filter((i) => top[i]?.m);
@@ -111,9 +113,11 @@ function SidePanel({ icon, title, children, className }: { icon: ReactNode; titl
   );
 }
 
-export default async function TablePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function TablePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ round?: string; player?: string }> }) {
   const { slug } = await params;
+  const { round, player } = await searchParams;
   const { crew, user } = await requireCrewPage(slug);
+  if (crew.sport === "golf") return <GolfLeaderboard crew={crew} user={user} wantedRound={round ?? null} highlight={player ?? user.id} />;
   const { rows, members } = await getCrewTable(crew);
   const cats = ratingsFor(crew.sport, crew.ratings);
   const top = cats[0];
@@ -236,6 +240,148 @@ export default async function TablePage({ params }: { params: Promise<{ slug: st
               )}
             </SidePanel>
           </div>
+        </>
+      )}
+    </CrewShell>
+  );
+}
+
+/**
+ * Golf's table. A society is judged on the card, so there's no turn-up column and no sick notes: a
+ * player's points are their Stableford points plus what the crew voted them, round after round. The
+ * round just played sits on top, so submitting a card lands you on what it earned you.
+ */
+async function GolfLeaderboard({ crew, user, wantedRound, highlight }: { crew: Parameters<typeof CrewShell>[0]["crew"]; user: Parameters<typeof CrewShell>[0]["user"]; wantedRound: string | null; highlight: string }) {
+  const { members, rounds, votes } = await golfLeaderboardData(crew);
+  const cats = ratingsFor(crew.sport, crew.ratings);
+  const rows = golfTable(
+    members.map((m) => m.id),
+    rounds,
+    votes,
+    cats,
+  );
+  const shown = currentRound(rounds, wantedRound);
+  const summary = shown ? golfRoundSummary(shown, votes, cats) : null;
+  const mine = summary?.rows.find((r) => r.userId === highlight) ?? null;
+  const justSubmitted = !!wantedRound && wantedRound === shown?.sessionId && !!mine;
+  const name = (id: string) => members.find((m) => m.id === id);
+  const live = rows.some((r) => r.points > 0);
+  const scoring = cats.filter((c) => c.points > 0).map((c) => `${c.label} +${c.points}`).join(", ");
+
+  return (
+    <CrewShell crew={crew} user={user} active="table">
+      <PageTitle eyebrow={crew.seasonName} title="Leaderboard" action={<LinkButton href={`/crew/${crew.slug}/season`} variant="secondary" className="min-h-9 px-3 text-sm">Season awards</LinkButton>}>
+        Your Stableford points plus the crew&apos;s votes{scoring ? ` (${scoring})` : ""}. Nothing for turning up.
+      </PageTitle>
+
+      {summary ? (
+        <Panel className={cls("p-4 flex flex-col gap-3 anim-rise", justSubmitted && "border-pitch/50")} id="round">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="eyebrow">{justSubmitted ? "Round submitted" : "Latest round"}</div>
+              <div className="display text-2xl font-bold uppercase leading-tight wrap-anywhere mt-0.5">{summary.course ?? summary.title}</div>
+              <div className="text-xs text-ink-3 mt-0.5">
+                {fmtDay(new Date(summary.startsAt))}
+                {summary.course ? ` · ${summary.title}` : ""}
+              </div>
+            </div>
+            <LinkButton href={`/crew/${crew.slug}/s/${summary.sessionId}`} variant="secondary" className="min-h-9 px-3 text-sm shrink-0">
+              Open round
+            </LinkButton>
+          </div>
+
+          {mine ? (
+            <div className="rounded-md border border-pitch/40 bg-pitch-soft px-3 py-2.5 flex items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-semibold">{highlight === user.id ? "You scored" : `${name(highlight)?.name ?? "They"} scored`}</div>
+                <div className="text-ink-2 text-xs">
+                  {mine.stableford} Stableford
+                  {mine.holesPlayed < summary.holes ? ` (${mine.holesPlayed} of ${summary.holes} holes)` : ""} + {mine.votePoints} from votes
+                </div>
+              </div>
+              <div className="display text-4xl font-extrabold tnum text-pitch leading-none">{mine.total}</div>
+            </div>
+          ) : null}
+
+          <ol className="flex flex-col divide-y divide-line-2 rounded-md border border-line overflow-hidden" aria-label="This round">
+            {summary.rows.map((r, i) => {
+              const m = name(r.userId);
+              if (!m) return null;
+              return (
+                <li key={r.userId} className={cls("flex items-center gap-2.5 px-3 py-2 text-sm", r.userId === highlight ? "bg-pitch-soft" : "bg-panel-2")}>
+                  <span className="display text-lg font-bold tnum w-5 text-ink-3">{i + 1}</span>
+                  <Avatar name={m.name} hue={m.hue} size={28} />
+                  <span className="flex-1 min-w-0 font-semibold truncate">{m.name}</span>
+                  <span className="font-mono text-xs text-ink-3 tnum text-right">
+                    {r.stableford} pts{r.holesPlayed && r.holesPlayed < summary.holes ? ` · ${r.holesPlayed}h` : ""}
+                    {r.votePoints ? <span className="text-pitch"> +{r.votePoints}</span> : null}
+                  </span>
+                  <span className="display text-2xl font-extrabold tnum w-10 text-right">{r.total}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="text-xs text-ink-3">
+            Votes add to this once they&apos;re in.{" "}
+            <Link href={`/crew/${crew.slug}/s/${summary.sessionId}/rate`} className="underline font-semibold text-pitch">
+              Cast yours
+            </Link>
+          </p>
+        </Panel>
+      ) : null}
+
+      {!live ? (
+        <Panel className="p-8 flex flex-col items-center text-center gap-3 anim-rise mt-4">
+          <span className="w-14 h-14 rounded-full bg-pitch-soft text-pitch flex items-center justify-center">
+            <IconTrophy size={28} />
+          </span>
+          <div className="display text-2xl font-bold uppercase">Nothing on the board yet</div>
+          <p className="text-ink-2 max-w-[38ch]">Play a round and submit your card: your Stableford points land here straight away.</p>
+        </Panel>
+      ) : (
+        <>
+          <div className="mt-5">
+            <Podium rows={rows} members={members} slug={crew.slug} />
+          </div>
+          <Panel className="overflow-x-auto mt-4 anim-rise-2">
+            <table className="w-full text-sm min-w-[520px]">
+              <thead>
+                <tr className="eyebrow text-left bg-ground-2">
+                  <th className="font-normal pl-3 pr-1 py-2.5 w-10">#</th>
+                  <th className="font-normal px-2 py-2.5">Player</th>
+                  <th className="font-normal px-2 py-2.5 text-right">Rounds</th>
+                  <th className="font-normal px-2 py-2.5 text-right">Avg</th>
+                  <th className="font-normal px-2 py-2.5 text-right">Best</th>
+                  <th className="font-normal px-2 py-2.5 text-right">Votes</th>
+                  <th className="font-normal px-3 py-2.5 text-right">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const m = name(r.userId);
+                  if (!m) return null;
+                  return (
+                    <tr key={r.userId} className={cls("border-t border-line-2 hover:bg-ground-2", r.userId === user.id && "bg-pitch-soft/50")}>
+                      <td className="pl-3 pr-1 py-2">
+                        <span className={cls("display text-xl font-bold tnum", i < 3 ? "text-ink" : "text-ink-3")}>{i + 1}</span>
+                      </td>
+                      <td className="px-2 py-2">
+                        <Link href={`/crew/${crew.slug}/players/${r.userId}`} className="flex items-center gap-2 min-w-0">
+                          <Avatar name={m.name} hue={m.hue} size={30} />
+                          <span className="font-semibold truncate">{m.name}</span>
+                        </Link>
+                      </td>
+                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.rounds}</td>
+                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.avg?.toFixed(1) ?? <span className="text-ink-3">–</span>}</td>
+                      <td className="px-2 py-2 text-right tnum text-ink-2">{r.best ?? <span className="text-ink-3">–</span>}</td>
+                      <td className="px-2 py-2 text-right tnum">{r.votePoints ? <span className="text-pitch font-semibold">+{r.votePoints}</span> : <span className="text-ink-3">0</span>}</td>
+                      <td className="px-3 py-2 text-right tnum display text-2xl font-extrabold">{r.points}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Panel>
         </>
       )}
     </CrewShell>

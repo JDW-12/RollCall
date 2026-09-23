@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SPORTS } from "./sports";
 import { computeTable } from "./table";
-import { seasonAwards } from "./awards";
+import { golfSeasonAwards, seasonAwards } from "./awards";
 
 const cats = SPORTS.football.ratings;
 
@@ -40,5 +40,44 @@ describe("seasonAwards", () => {
   });
   it("returns nothing before anyone has played", () => {
     expect(seasonAwards([], cats)).toEqual([]);
+  });
+});
+
+describe("golfSeasonAwards", () => {
+  const cats = [
+    { key: "motm", label: "Best golfer", prompt: "", points: 3, stat: "BST" },
+    { key: "grafter", label: "Longest driver", prompt: "", points: 2, stat: "LNG" },
+  ];
+  const table = [
+    { userId: "ann", points: 60, rounds: 2 },
+    { userId: "bob", points: 40, rounds: 2 },
+    { userId: "cat", points: 0, rounds: 0 },
+  ];
+  const stats = new Map([
+    ["ann", { best: { points: 34, title: "Griffin" }, birdies: 2, longestDrive: { yards: 260, title: "Griffin" }, ballsLost: 1 }],
+    ["bob", { best: { points: 38, title: "Kingfisher" }, birdies: 5, longestDrive: { yards: 290, title: "Kingfisher" }, ballsLost: 7 }],
+  ]);
+  const votes = [
+    { category: "motm", rateeId: "bob" },
+    { category: "motm", rateeId: "bob" },
+    { category: "motm", rateeId: "ann" },
+  ];
+
+  it("crowns the leaderboard's champion and names the rest from the cards and the votes", () => {
+    const a = golfSeasonAwards(table, stats, votes, cats);
+    const got = Object.fromEntries(a.map((x) => [x.key, [x.userId, x.value]]));
+    expect(got).toEqual({ champion: ["ann", 60], player: ["bob", 2], round: ["bob", 38], birdies: ["bob", 5], drive: ["bob", 290], lost: ["bob", 7] });
+    expect(a.find((x) => x.key === "player")?.label).toBe("Best golfer of the season");
+  });
+
+  it("never hands out attendance awards", () => {
+    const keys = golfSeasonAwards(table, stats, votes, cats).map((a) => a.key);
+    expect(keys).not.toContain("iron");
+    expect(keys).not.toContain("streak");
+    expect(keys).not.toContain("sicknote");
+  });
+
+  it("gives nothing before anyone has played", () => {
+    expect(golfSeasonAwards([{ userId: "cat", points: 0, rounds: 0 }], new Map(), [], cats)).toEqual([]);
   });
 });

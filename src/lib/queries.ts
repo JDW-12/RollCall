@@ -6,6 +6,7 @@ import { computeTable, type TableRow } from "@/domain/table";
 import { balances, type Balance } from "@/domain/money";
 import type { Appearance, MatchStatRow } from "@/domain/match-stats";
 import { teamsOf, type DivisionCandidate } from "@/domain/divisions";
+import type { VenueHistoryRow } from "@/domain/venues";
 import type { StandingRow } from "@/domain/league";
 
 export type Member = schema.User & { role: schema.CrewMember["role"]; joinedAt: Date };
@@ -128,14 +129,31 @@ export async function getFeed(crewId: string, limit = 30): Promise<schema.FeedIt
   return db.select().from(schema.feed).where(eq(schema.feed.crewId, crewId)).orderBy(desc(schema.feed.createdAt)).limit(limit);
 }
 
-export async function venueHistory(crewId: string): Promise<{ venueName: string; venueAddress: string }[]> {
+/**
+ * Where the crew has played, newest first. For golf it also carries the course card each round used,
+ * so tapping a recent venue brings its scorecard with it and nobody searches for the club twice.
+ */
+export async function venueHistory(crewId: string): Promise<VenueHistoryRow[]> {
   const db = await getDb();
-  return db
-    .select({ venueName: schema.sessions.venueName, venueAddress: schema.sessions.venueAddress })
+  const rows = await db
+    .select({ venueName: schema.sessions.venueName, venueAddress: schema.sessions.venueAddress, game: schema.games.data })
     .from(schema.sessions)
+    .leftJoin(schema.games, and(eq(schema.games.sessionId, schema.sessions.id), eq(schema.games.kind, "stableford")))
     .where(eq(schema.sessions.crewId, crewId))
     .orderBy(desc(schema.sessions.startsAt))
     .limit(60);
+  return rows.map((r) => {
+    let course: VenueHistoryRow["course"] = null;
+    if (r.game) {
+      try {
+        const c = (JSON.parse(r.game) as { course?: { id: string | null; name: string; tee: string } | null }).course;
+        if (c?.id) course = { id: c.id, name: c.name, tee: c.tee };
+      } catch {
+        /* an unreadable card just means no course on the chip */
+      }
+    }
+    return { venueName: r.venueName, venueAddress: r.venueAddress, course };
+  });
 }
 
 export async function findCrewByInvite(token: string): Promise<schema.Crew | null> {
@@ -246,4 +264,18 @@ export async function sharedStandings(divisionKey: string, excludeCompetitionId:
   )[0];
   if (!hit) return null;
   return { rows: JSON.parse(hit.standings ?? "[]") as StandingRow[], updatedAt: hit.updatedAt, source: hit.source, crewName: hit.crewName };
+}
+
+/**
+ * Everything the golf leaderboard needs: the crew's rounds and the votes cast on them. Golf is scored
+ * on the card and the votes, never on attendance, so RSVPs and turn-ups aren't read at all.
+ */
+export async function golfLeaderboardData(crew: schema.Crew): Promise<{ members: Member[]; rounds: import("@/domain/golf-stats").Round[]; votes: { sessionId: string; category: string; rateeId: string }[] }> {
+  const db = await getDb();
+  const [members, rounds] = await Promise.all([listMembers(crew.id), golfRounds(crew.id)]);
+  const ids = rounds.map((r) => r.sessionId);
+  const votes = ids.length
+    ? (await db.select({ sessionId: schema.ratings.sessionId, category: schema.ratings.category, rateeId: schema.ratings.rateeId }).from(schema.ratings).where(inArray(schema.ratings.sessionId, ids)))
+    : [];
+  return { members, rounds, votes };
 }

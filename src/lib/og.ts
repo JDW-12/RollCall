@@ -33,11 +33,12 @@ export const OG = {
 } as const;
 
 /** Card tier by overall rating. Mirrors tierOf() in player-card.tsx without pulling a client-leaning module into the image route. */
-export function ogTier(overall: number): "Elite" | "Gold" | "Silver" | "Sick note" {
+export function ogTier(overall: number, golf = false): "Elite" | "Gold" | "Silver" | "Sick note" | "Hacker" {
   if (overall >= 85) return "Elite";
   if (overall >= 72) return "Gold";
   if (overall >= 60) return "Silver";
-  return "Sick note";
+  // Golf is rated on scoring, not turning up, so its bottom tier is about the swing.
+  return golf ? "Hacker" : "Sick note";
 }
 
 /** The mark as inline SVG for satori: tick in a rounded square. */

@@ -108,9 +108,15 @@ export function HoleScorer({ sessionId, userId, holes, handicap: initialHandicap
         {n === 18 ? <Total label="In" pts={sum(pts, half, n)} gross={grossOf(half, n)} /> : <div />}
         <Total label="Total" pts={sum(pts, 0, n)} gross={grossOf(0, n)} strong />
       </div>
-      <SubmitButton pendingText="Saving…" className="sticky bottom-20 shadow-lg">
-        Save card
-      </SubmitButton>
+      {/* Save keeps you on the card mid-round; submit is for the 18th green and takes you to the leaderboard. */}
+      <div className="sticky bottom-20 grid grid-cols-[1fr_2fr] gap-2">
+        <SubmitButton variant="secondary" pendingText="Saving…" className="shadow-lg">
+          Save
+        </SubmitButton>
+        <SubmitButton name="submit" value="1" pendingText="Submitting…" className="shadow-lg">
+          Submit round
+        </SubmitButton>
+      </div>
     </ActionForm>
   );
 }

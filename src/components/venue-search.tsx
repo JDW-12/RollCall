@@ -8,15 +8,23 @@ import { IconGolf, IconPin } from "@/components/icons";
 
 type Hit = PlaceHit & { course?: CourseHit };
 
+/** The course the session will be set up with, however it was chosen: from the search or a recent chip. */
+type PickedCourse = { ref: string; text: string };
+
+function fromHit(c: CourseHit): PickedCourse {
+  return { ref: `${c.source}:${c.ref}`, text: c.holes.length ? `Card loads: ${courseLabel(c)} · ${hitDetail(c)}` : `Card loads when you save: ${courseLabel(c)}` };
+}
+
 /**
  * Venue name input with an address finder underneath. Typing looks the place up; picking a
  * result fills the name and the address field in the same form. Plain typing still works when
- * the lookup is slow or offline.
+ * the lookup is slow or offline. On a golf session it is the course search: picking a course here
+ * sets up the scorecard, so nobody has to find the club a second time inside the round.
  */
-export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string; hint?: string }) {
+export function VenueSearch({ defaultValue = "", hint, label = "Venue", placeholder }: { defaultValue?: string; hint?: string; label?: string; placeholder?: string }) {
   const [value, setValue] = useState(defaultValue);
   const [found, setHits] = useState<Hit[]>([]);
-  const [course, setCourse] = useState<CourseHit | null>(null);
+  const [course, setCourse] = useState<PickedCourse | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [picked, setPicked] = useState(defaultValue);
@@ -60,8 +68,14 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
     const el = inputRef.current;
     if (!el) return;
     const onPicked = (e: Event) => {
-      setPicked(String((e as CustomEvent<string>).detail ?? ""));
-      setCourse(null);
+      const detail = (e as CustomEvent<string | { name: string; course: { ref: string; label: string } | null }>).detail;
+      if (typeof detail === "object" && detail) {
+        setPicked(detail.name);
+        setCourse(detail.course ? { ref: detail.course.ref, text: `Card loads: ${detail.course.label}` } : null);
+      } else {
+        setPicked(String(detail ?? ""));
+        setCourse(null);
+      }
     };
     el.addEventListener("rc:venue-picked", onPicked);
     return () => el.removeEventListener("rc:venue-picked", onPicked);
@@ -72,17 +86,18 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
     setValue(h.name);
     setHits([]);
     setOpen(false);
-    setCourse(h.course ?? null);
+    setCourse(h.course ? fromHit(h.course) : null);
     const addr = inputRef.current?.form?.elements.namedItem("venueAddress") as HTMLInputElement | null;
     if (addr && h.address) addr.value = h.address;
   }
 
   return (
     <label className="flex flex-col gap-1.5 relative">
-      <span className="text-sm font-semibold text-ink">Venue</span>
+      <span className="text-sm font-semibold text-ink">{label}</span>
       <input
         ref={inputRef}
         name="venueName"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onFocus={() => hits.length && setOpen(true)}
@@ -107,10 +122,10 @@ export function VenueSearch({ defaultValue = "", hint }: { defaultValue?: string
         aria-controls={listId}
         aria-autocomplete="list"
       />
-      <input type="hidden" name="courseRef" value={course ? `${course.source}:${course.ref}` : ""} />
+      <input type="hidden" name="courseRef" value={course?.ref ?? ""} />
       {course ? (
         <span className="text-xs text-pitch inline-flex items-center gap-1">
-          <IconGolf size={13} /> {course.holes.length ? `Card loads: ${courseLabel(course)} · ${hitDetail(course)}` : `Card loads when you save: ${courseLabel(course)}`}
+          <IconGolf size={13} /> {course.text}
         </span>
       ) : hint ? (
         <span className="text-xs text-ink-3">{hint}</span>

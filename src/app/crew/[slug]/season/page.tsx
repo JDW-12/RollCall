@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { optionalCrewPage } from "@/lib/access";
 import { getCrewTable } from "@/lib/queries";
-import { seasonAwards } from "@/domain/awards";
+import { golfSeasonAwards, seasonAwards } from "@/domain/awards";
+import { golfStats } from "@/domain/golf-stats";
+import { golfPlayers } from "@/lib/golf-card";
 import { ratingsFor } from "@/domain/ratings";
 import { appUrl } from "@/lib/env";
 import { track } from "@/lib/events";
@@ -11,7 +13,7 @@ import { PreviewActions } from "@/components/previews";
 import { ShareButtons } from "@/components/share";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LinkButton, Panel, cls } from "@/components/ui";
-import { IconAlert, IconBolt, IconFlame, IconMedal, IconTrophy, IconWhistle } from "@/components/icons";
+import { IconAlert, IconBolt, IconFlame, IconGolf, IconMedal, IconTrophy, IconWhistle } from "@/components/icons";
 import type { ReactNode } from "react";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -27,6 +29,10 @@ const ICONS: Record<string, ReactNode> = {
   grafter: <IconWhistle size={20} />,
   sicknote: <IconAlert size={20} />,
   banter: <IconWhistle size={20} />,
+  round: <IconGolf size={20} />,
+  birdies: <IconFlame size={20} />,
+  drive: <IconBolt size={20} />,
+  lost: <IconAlert size={20} />,
 };
 
 export default async function SeasonPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -34,8 +40,20 @@ export default async function SeasonPage({ params }: { params: Promise<{ slug: s
   const gate = await optionalCrewPage(slug);
   const { crew } = gate;
   const { rows, members } = await getCrewTable(crew);
-  const awards = seasonAwards(rows, ratingsFor(crew.sport, crew.ratings), 1);
-  const played = rows.reduce((t, r) => t + r.played, 0);
+  let awards = seasonAwards(rows, ratingsFor(crew.sport, crew.ratings), 1);
+  let played = rows.reduce((t, r) => t + r.played, 0);
+  if (crew.sport === "golf") {
+    // Golf is won on the card and the votes, so its awards come from the golf leaderboard instead.
+    const g = await golfPlayers(crew);
+    const stats = new Map(
+      g.table.map((r) => {
+        const s = golfStats(g.rounds, r.userId);
+        return [r.userId, { best: s.best, birdies: s.results.birdie + s.results.eagle + s.results.albatross + s.results.holeInOne, longestDrive: s.longestDrive, ballsLost: s.ballsLost }];
+      }),
+    );
+    awards = golfSeasonAwards(g.table, stats, g.votes, g.cats);
+    played = g.table.reduce((t, r) => t + r.rounds, 0);
+  }
   const url = `${await appUrl()}/crew/${crew.slug}/season`;
   const name = (id: string) => members.find((m) => m.id === id);
   if (!gate.member) await track("preview_view", { crewId: crew.id, userId: gate.user?.id ?? null, payload: { what: "season" } });
@@ -47,10 +65,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ slug: s
           {crew.name} · {crew.seasonName}
         </div>
         <h1 className="text-[48px] sm:text-[64px] font-extrabold uppercase leading-[0.9]">Season awards</h1>
-        <p className="text-ink-2 mt-2 max-w-[48ch]">Decided by turning up and by the votes of the people who were actually there. {played} appearances so far.</p>
+        <p className="text-ink-2 mt-2 max-w-[48ch]">
+          {crew.sport === "golf" ? `Decided on the card and by the votes of the people who were out there. ${played} rounds so far.` : `Decided by turning up and by the votes of the people who were actually there. ${played} appearances so far.`}
+        </p>
       </header>
       {awards.length === 0 ? (
-        <EmptyState title="No awards yet" body="The first confirmed session starts the count." action={gate.member ? <LinkButton href={`/crew/${crew.slug}`}>Back to the crew</LinkButton> : undefined} />
+        <EmptyState title="No awards yet" body={crew.sport === "golf" ? "The first submitted card starts the count." : "The first confirmed session starts the count."} action={gate.member ? <LinkButton href={`/crew/${crew.slug}`}>Back to the crew</LinkButton> : undefined} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {awards.map((a, i) => {

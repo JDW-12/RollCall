@@ -30,8 +30,14 @@ function ground(tier: Tier, hue: number): string {
   }
 }
 
-/** Golf crews swap the six slots for the numbers a golfer cares about. */
-export type GolfCardStats = { handicap: number | null; avg: number | null; best: number | null; birdies: number; wins: number; rounds: number };
+/**
+ * Golf crews swap the six slots for the numbers a golfer cares about, and rate the card on their
+ * scoring (see golfRating) rather than on turning up.
+ */
+export type GolfCardStats = { handicap: number | null; avg: number | null; best: number | null; birdies: number; wins: number; rounds: number; overall: number };
+
+/** Golf's bottom tier: nobody on a golf card is a sick note, they just haven't found their swing yet. */
+const GOLF_TIER_LABEL: Record<Tier, string> = { elite: "Elite", gold: "Gold", silver: "Silver", bronze: "Hacker" };
 
 export function golfSlots(g: GolfCardStats, points: number): [string, number][] {
   return [
@@ -65,7 +71,8 @@ export type PlayerCardProps = {
  * six stats. Rendered in-page; the share-card image route draws the same thing.
  */
 export function PlayerCard({ name, hue, crewName, sport, sportLabel, card, rank, categories, points, season, tilt = true, className, golf }: PlayerCardProps) {
-  const tier = tierOf(card.overall);
+  const overall = golf ? golf.overall : card.overall;
+  const tier = tierOf(overall);
   const dark = `oklch(0.22 0.05 ${hue})`;
   const stats: [string, number][] = golf ? golfSlots(golf, points) : [
     ["TRN", card.turnsUp],
@@ -83,8 +90,8 @@ export function PlayerCard({ name, hue, crewName, sport, sportLabel, card, rank,
       <div className="rounded-[15px] border border-white/40 p-4 flex flex-col gap-3 h-full" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 40%)" }}>
         <div className="flex items-start justify-between">
           <div className="flex flex-col">
-            <span className="display text-[66px] font-extrabold leading-[0.85] tnum">{card.overall}</span>
-            <span className="font-mono text-[10px] tracking-[0.16em] uppercase mt-1.5 opacity-75">{TIER_LABEL[tier]}</span>
+            <span className="display text-[66px] font-extrabold leading-[0.85] tnum">{overall}</span>
+            <span className="font-mono text-[10px] tracking-[0.16em] uppercase mt-1.5 opacity-75">{(golf ? GOLF_TIER_LABEL : TIER_LABEL)[tier]}</span>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.12)" }}>

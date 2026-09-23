@@ -20,6 +20,7 @@ import { IconFlame, IconPin, IconWhistle, SportIcon } from "@/components/icons";
 import { EmptyState, Eyebrow, LinkButton, Panel, Pill, cls } from "@/components/ui";
 import { fmtDay, fmtTime, plural, pounds, relativeDay } from "@/lib/format";
 import { RsvpButtons } from "./s/[id]/rsvp-buttons";
+import { GolfHome } from "@/components/golf-home";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -38,6 +39,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
   const rsvps = await rsvpsFor([next?.id, ...upcoming.map((s) => s.id), ...needsConfirm.map((s) => s.id)].filter((x): x is string => !!x));
   const inviteUrl = `${await appUrl()}/join/${crew.inviteToken}`;
   const sport = sportOf(crew.sport);
+  const golf = crew.sport === "golf";
   const top = table.rows.slice(0, 5);
   const tableEmpty = table.rows.every((r) => r.played === 0 && r.sickNotes === 0);
 
@@ -76,7 +78,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
           </span>
           <div className="flex-1 min-w-0 text-sm">
             <div className="font-bold uppercase display text-lg leading-none truncate">{needsConfirm[0].title} has been played</div>
-            <div className="text-card-ink/80">Confirm who turned up so the table and money update.</div>
+            <div className="text-card-ink/80">{golf ? "Confirm who played so the money settles and voting opens." : "Confirm who turned up so the table and money update."}</div>
           </div>
           <LinkButton href={`/crew/${crew.slug}/s/${needsConfirm[0].id}/play`} className="min-h-9 px-3 text-sm bg-card text-pitch-ink hover:bg-card shrink-0">
             Confirm
@@ -88,7 +90,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
         <div className="flex items-end justify-between">
           <div>
             <Eyebrow>Next up</Eyebrow>
-            <h2 className="text-2xl font-bold uppercase">Matchday</h2>
+            <h2 className="text-2xl font-bold uppercase">{golf ? "Next round" : "Matchday"}</h2>
           </div>
           {isOrganiser ? (
             <LinkButton href={`/crew/${crew.slug}/sessions/new`} variant="secondary" className="min-h-9 px-3 text-sm">
@@ -114,6 +116,11 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
         ) : null}
       </section>
 
+      {golf ? (
+        <div className="mt-8">
+          <GolfHome crew={crew} myId={user.id} />
+        </div>
+      ) : (
       <section className="mt-8 flex flex-col gap-3 anim-rise-3">
         <div className="flex items-end justify-between">
           <div>
@@ -154,6 +161,7 @@ export default async function CrewHome({ params, searchParams }: { params: Promi
           </Panel>
         )}
       </section>
+      )}
 
       <section className="mt-8 flex flex-col gap-3">
         <div>

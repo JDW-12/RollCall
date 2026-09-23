@@ -186,7 +186,10 @@ export default async function SettingsPage({ params, searchParams }: { params: P
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
               <Eyebrow>What you vote on</Eyebrow>
-              <p className="text-sm text-ink-2 mt-1">After every {sport.noun}, players pick one name for each. The first two carry table points (+2 and +1); the rest are banter. Up to five.</p>
+              <p className="text-sm text-ink-2 mt-1">
+                After every {sport.noun}, players pick one name for each.{" "}
+                {sport.votePoints ? `Every vote scores on the leaderboard, in order: ${sport.votePoints.map((p) => `+${p}`).join(", ")}.` : "The first two carry table points (+2 and +1); the rest are banter."} Up to five.
+              </p>
             </div>
             {crew.ratings ? <Pill tone="good">Custom</Pill> : <Pill>Defaults</Pill>}
           </div>

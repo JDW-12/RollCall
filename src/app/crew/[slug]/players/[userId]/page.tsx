@@ -13,6 +13,7 @@ import { ratingsFor } from "@/domain/ratings";
 import { turnUpRate } from "@/domain/table";
 import { CrewShell } from "@/components/shell";
 import { PlayerCard } from "@/components/player-card";
+import { golfPlayers } from "@/lib/golf-card";
 import { ShareButtons } from "@/components/share";
 import { AnimatedNumber } from "@/components/animated-number";
 import { FormDots } from "@/components/sparkline";
@@ -56,18 +57,28 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   const golf = sport.games.includes("stableford") ? golfStats(await golfRounds(crew.id), userId) : null;
   const fixtureSeason = sport.finders.length && !sport.games.includes("stableford") ? await crewMatchStats(crew.id) : null;
   const pitch = fixtureSeason ? (seasonStats(fixtureSeason.stats, fixtureSeason.appearances).find((r) => r.userId === userId) ?? null) : null;
-  const golfCard = golf ? { handicap: golf.handicap, avg: golf.avg, best: golf.best?.points ?? null, birdies: golf.results.birdie + golf.results.eagle + golf.results.albatross + golf.results.holeInOne, wins: golf.wins, rounds: golf.rounds } : null;
+  // Golf: the card's points, rank and rating come from the golf leaderboard, not the attendance table.
+  const golfPlayer = golf ? (await golfPlayers(crew)).player(userId) : null;
+  const golfCard = golfPlayer?.card ?? null;
 
   return (
     <CrewShell crew={crew} user={user} active="table">
-      <PageTitle eyebrow={`#${rank} in ${crew.name} · ${crew.seasonName}`} title={m.name} />
+      <PageTitle eyebrow={`#${golfPlayer?.rank ?? rank} in ${crew.name} · ${crew.seasonName}`} title={m.name} />
 
       <div className="grid gap-5 sm:grid-cols-[minmax(0,340px)_1fr] items-start">
         <div className="w-full max-w-[340px] mx-auto sm:mx-0 anim-rise">
-          <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={rank} categories={cats} points={row.points} season={crew.seasonName} tilt golf={golfCard} />
+          <PlayerCard name={m.name} hue={m.hue} crewName={crew.name} sport={crew.sport} sportLabel={sport.label} card={row.card} rank={golfPlayer?.rank ?? rank} categories={cats} points={golfPlayer?.row.points ?? row.points} season={crew.seasonName} tilt golf={golfCard} />
         </div>
 
         <div className="flex flex-col gap-3">
+          {golfPlayer ? (
+            // Golf: scored on the card and the votes. No turn-up rate, streaks or sick notes.
+            <Panel className="p-4 grid grid-cols-3 gap-x-3 gap-y-5 anim-rise-2">
+              <Stat label="Points" value={<AnimatedNumber value={golfPlayer.row.points} />} sub={`${golfPlayer.row.stableford} Stableford + ${golfPlayer.row.votePoints} votes`} />
+              <Stat label="Rounds" value={<AnimatedNumber value={golfPlayer.row.rounds} />} />
+              <Stat label="Avg" value={golfPlayer.row.avg === null ? "–" : <AnimatedNumber value={golfPlayer.row.avg} decimals={1} />} sub="Stableford a round" />
+            </Panel>
+          ) : (
           <Panel className="p-4 grid grid-cols-3 gap-x-3 gap-y-5 anim-rise-2">
             <Stat label="Points" value={<AnimatedNumber value={row.points} />} />
             <Stat label="Played" value={<AnimatedNumber value={row.played} />} sub={<FormDots history={row.history} />} />
@@ -86,6 +97,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             />
             <Stat label="Sick notes" value={<AnimatedNumber value={row.sickNotes} />} tone={row.sickNotes > 0 ? "bad" : undefined} sub={`${row.lateDrops} late · ${row.noShows} no-show`} />
           </Panel>
+          )}
 
           {pitch && pitch.apps > 0 ? (
             <Panel className="p-4 flex flex-col gap-3 anim-rise-3">

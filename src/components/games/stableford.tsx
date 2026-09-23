@@ -5,7 +5,6 @@ import { ActionForm, SubmitButton } from "@/components/action-form";
 import { IconGolf } from "@/components/icons";
 import { Panel, cls } from "@/components/ui";
 import { saveStableford } from "@/lib/actions/games";
-import { courseLabel } from "@/domain/courses";
 import { RESULT_LABEL, roundAwards, roundHighlights } from "@/domain/golf-highlights";
 import { CoursePicker } from "./course-picker";
 import { HoleScorer } from "./hole-scorer";
@@ -23,21 +22,20 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
   const summaryCls = "px-3 py-2.5 text-sm font-semibold cursor-pointer flex items-center justify-between gap-3 list-none";
   return (
     <Panel className="p-4 flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <IconGolf size={18} className="text-pitch" />
-          <h3 className="text-xl font-bold uppercase">Stableford</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 min-w-0">
+          <IconGolf size={18} className="text-pitch mt-1 shrink-0" />
+          <div className="min-w-0">
+            {/* The round is known by where it was played; the scoring format is the small print. */}
+            <h3 className="text-xl font-bold uppercase leading-tight wrap-anywhere">{card.course?.name || "Stableford"}</h3>
+            {card.course ? <div className="eyebrow mt-0.5">{card.course.tee ? `${card.course.tee} tees · ` : ""}Stableford</div> : null}
+          </div>
         </div>
-        <span className="eyebrow tnum">
+        <span className="eyebrow tnum shrink-0 mt-1">
           {card.holes.length} holes · par {card.holes.reduce((a, h) => a + h.par, 0)}
         </span>
       </div>
-      {card.course ? (
-        <p className="text-sm text-ink-2 -mt-2">
-          Card: <strong className="text-ink">{courseLabel(card.course)}</strong>
-          {card.course.id ? " · from the course library" : ""}
-        </p>
-      ) : isOrganiser ? (
+      {card.course ? null : isOrganiser ? (
         <p className="text-sm text-ink-2 -mt-2">Using a standard par-72 layout. Pick the real course below so the points are right.</p>
       ) : null}
       {totals.length ? (
@@ -105,7 +103,7 @@ export function StablefordPanel({ sessionId, game, members, isOrganiser, playerI
         <details key={uid} className="rounded-md border border-line bg-panel-2" open={uid === myId && !card.strokes[uid]}>
           <summary className={summaryCls}>
             <span>{uid === myId ? "Your card" : `${name(uid)}'s card`}</span>
-            <span className="eyebrow">{card.strokes[uid] ? "Saved" : "Empty"}</span>
+            <span className="eyebrow">{card.submitted?.[uid] ? "Submitted" : card.strokes[uid] ? "Saved" : "Empty"}</span>
           </summary>
           <HoleScorer key={`${courseKey}|${game?.updatedAt.getTime() ?? 0}`} sessionId={sessionId} userId={uid} holes={card.holes} handicap={card.handicaps[uid] ?? null} strokes={card.strokes[uid] ?? null} extras={card.extras?.[uid] ?? null} />
         </details>

@@ -31,6 +31,8 @@ export type SportDef = {
   defaultCostPence: number;
   venueHint: string;
   ratings: RatingCategory[];
+  /** Points per vote by position when a crew customises its categories. Defaults to 2, 1, then banter. */
+  votePoints?: number[];
   games: GameKind[];
   /** Short line used in marketing and crew setup. */
   pitch: string;
@@ -93,11 +95,13 @@ export const SPORTS: Record<SportKey, SportDef> = {
     defaultCostMode: "per_head",
     defaultCostPence: 3500,
     venueHint: "e.g. Richmond Park, Prince's course, 08:10 tee",
+    // Every golf vote scores: the round is judged on the card, and the votes are the extra glory on top.
     ratings: [
-      { key: "motm", label: "Golfer of the day", prompt: "Who was golfer of the day?", points: 2, stat: "GOD" },
-      { key: "grafter", label: "Best scrambler", prompt: "Who got up and down from anywhere?", points: 1, stat: "SCR" },
-      { key: "howler", label: "Worst shank", prompt: "Shank of the day?", points: 0, stat: "SHK" },
+      { key: "motm", label: "Best golfer", prompt: "Who was the best golfer out there?", points: 3, stat: "BST" },
+      { key: "grafter", label: "Longest driver", prompt: "Who hit it furthest off the tee?", points: 2, stat: "LNG" },
+      { key: "howler", label: "Shot of the day", prompt: "Whose shot are we still talking about?", points: 2, stat: "SOD" },
     ],
+    votePoints: [3, 2, 2, 1, 1],
     games: ["stableford"],
     pitch: "Fourballs, society days and the Stableford scorecard with money on it, all in one place.",
     finders: [
