@@ -150,6 +150,9 @@ test("golf: typed card → library → reuse → correction", async ({ browser, 
   await expect(org.getByLabel("Strokes on hole 3")).toHaveText("2");
   await org.getByRole("link", { name: "← Card" }).click();
   await expect(org.getByText("· 4 holes")).toBeVisible();
+  // Play is a tab of its own for golf: on the day it opens the round, otherwise it lists them.
+  await org.getByRole("navigation", { name: "Crew" }).first().getByRole("link", { name: "Play" }).click();
+  await expect(org).toHaveURL(/\/(play|live)$/);
 
   // A later round: the venue finder on the session form searches the course library, and picking the
   // course there loads the card onto the session with no picker step.

@@ -6,7 +6,7 @@ import { Avatar } from "./avatar";
 import { cls } from "./ui";
 import { Wordmark } from "./logo";
 import { SandboxBanner } from "./sandbox-banner";
-import { IconCalendar, IconCoins, IconFlag, IconHome, IconPeople, IconTrophy, SportIcon } from "./icons";
+import { IconCalendar, IconCoins, IconFlag, IconGolf, IconHome, IconPeople, IconTrophy, SportIcon } from "./icons";
 
 const baseTabs = [
   { key: "", label: "Home", Icon: IconHome },
@@ -18,8 +18,13 @@ const baseTabs = [
 
 /** Sports played against another club get a League tab; a gym crew has nothing to put in it. */
 function tabsFor(sportKey: string) {
-  // Golf's table is a Stableford leaderboard, not an attendance table, so it says so on the tab.
-  const base = sportKey === "golf" ? baseTabs.map((t) => (t.key === "table" ? { ...t, label: "Board" } : t)) : baseTabs;
+  // Golf: the table is a Stableford leaderboard ("Board"), and play mode (GPS yardages, live scoring)
+  // gets its own tab in League's place, so it's one tap from anywhere on the course.
+  if (sportKey === "golf") {
+    const golf = baseTabs.map((t) => (t.key === "table" ? { ...t, label: "Board" } : t));
+    return [...golf.slice(0, 2), { key: "play", label: "Play", Icon: IconGolf }, ...golf.slice(2)];
+  }
+  const base = baseTabs;
   if (!sportOf(sportKey).finders.length) return base;
   return [...base.slice(0, 3), { key: "league", label: "League", Icon: IconFlag }, ...base.slice(3)];
 }

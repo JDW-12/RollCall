@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { HoleGeo } from "@/domain/course-geo";
 import { distance, greenDistances, toYards, type LatLon } from "@/domain/geo";
 import { stablefordPoints, type Hole } from "@/domain/stableford";
@@ -34,7 +34,9 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
   const firstOpen = strokes.findIndex((s) => s === null);
   const [idx, setIdx] = useState(firstOpen === -1 ? 0 : firstOpen);
   const [fix, setFix] = useState<Fix>(null);
-  const [gpsError, setGpsError] = useState<string | null>(null);
+  // idle: not asked yet · asking: waiting on the phone · on: fixes arriving · denied: blocked in settings
+  const [gps, setGps] = useState<"idle" | "asking" | "slow" | "on" | "denied" | "unsupported">("idle");
+  const watch = useRef<number | null>(null);
   const [target, setTarget] = useState<LatLon | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -47,22 +49,42 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
   const played = strokes.map((s, i) => (s === null ? null : { s, par: holes[i].par })).filter((x): x is { s: number; par: number } => x !== null);
   const toPar = played.reduce((a, x) => a + x.s - x.par, 0);
 
-  // GPS: watch the position while the page is open.
-  useEffect(() => {
-    if (!("geolocation" in navigator)) {
-      const t = setTimeout(() => setGpsError("This browser can't share your location."), 0);
-      return () => clearTimeout(t);
-    }
-    const id = navigator.geolocation.watchPosition(
+  // GPS starts from a tap on "Turn on GPS" (Safari asks more reliably after a tap), or straight away
+  // when the site already has permission. Blocked shows how to unblock it rather than a dead end.
+  const startGps = useCallback(() => {
+    if (!("geolocation" in navigator)) return setGps("unsupported");
+    if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
+    setGps("asking");
+    // No answer at all after 15 seconds (location switched off for the browser, or no signal): say how to fix it.
+    setTimeout(() => setGps((g) => (g === "asking" ? "slow" : g)), 15000);
+    watch.current = navigator.geolocation.watchPosition(
       (p) => {
-        setGpsError(null);
+        setGps("on");
         setFix({ at: [p.coords.latitude, p.coords.longitude], accuracy: p.coords.accuracy });
       },
-      (e) => setGpsError(e.code === e.PERMISSION_DENIED ? "Location is off for this site. Allow it in your browser settings to get distances." : "Looking for GPS…"),
+      (e) => {
+        if (e.code === e.PERMISSION_DENIED) setGps("denied");
+      },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
     );
-    return () => navigator.geolocation.clearWatch(id);
   }, []);
+
+  useEffect(() => {
+    let live = true;
+    const perms = (navigator as Navigator & { permissions?: { query: (d: { name: "geolocation" }) => Promise<{ state: string }> } }).permissions;
+    perms
+      ?.query({ name: "geolocation" })
+      .then((s) => {
+        if (!live) return;
+        if (s.state === "granted") startGps();
+        else if (s.state === "denied") setGps("denied");
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+      if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
+    };
+  }, [startGps]);
 
   // Keep the screen on during play; re-take the lock when the page comes back to the front.
   useEffect(() => {
@@ -163,10 +185,14 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
             Clear target
           </button>
         ) : null}
-        <div className="absolute left-2 bottom-2 rounded-md bg-black/60 text-white text-[11px] px-2 py-1 max-w-[70%]">
-          {gpsError ?? (fix ? `GPS ±${Math.round(fix.accuracy)} m${!hg ? " · this hole isn't mapped, tap the green to measure" : ""}` : "Finding you…")}
-          {fix && !hg && target ? ` · ${toYards(distance(fix.at, target))} yds to target` : ""}
-        </div>
+        {gps === "on" && fix ? (
+          <div className="absolute left-2 bottom-2 rounded-md bg-black/60 text-white text-[11px] px-2 py-1 max-w-[70%]">
+            GPS ±{Math.round(fix.accuracy)} m{!hg ? " · this hole isn't mapped, tap the green to measure" : ""}
+            {!hg && target ? ` · ${toYards(distance(fix.at, target))} yds to target` : ""}
+          </div>
+        ) : (
+          <GpsPrompt state={gps} onStart={startGps} />
+        )}
       </div>
 
       <footer className="border-t border-line bg-panel px-3 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] z-10">
@@ -198,6 +224,41 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/** What stands between you and yardages: a button to switch GPS on, or how to unblock it. */
+function GpsPrompt({ state, onStart }: { state: "idle" | "asking" | "slow" | "on" | "denied" | "unsupported"; onStart: () => void }) {
+  const box = "absolute left-3 right-3 bottom-3 rounded-lg bg-black/75 backdrop-blur-sm text-white p-3.5 flex flex-col gap-2.5";
+  if (state === "unsupported") return <div className={box}>This browser can&apos;t share your location, so yardages won&apos;t show. Try Safari or Chrome.</div>;
+  if (state === "asking" || state === "on") return <div className="absolute left-2 bottom-2 rounded-md bg-black/60 text-white text-[11px] px-2 py-1">Finding you… (stand still outside for a few seconds)</div>;
+  if (state === "denied" || state === "slow")
+    return (
+      <div className={box} role="alert">
+        <div className="font-semibold">{state === "denied" ? "Location is blocked for this site" : "Still no GPS"}</div>
+        <ol className="text-sm text-white/85 list-decimal pl-5 flex flex-col gap-1">
+          <li>
+            iPhone: <strong>Settings → Privacy &amp; Security → Location Services</strong> is on, and <strong>Safari Websites</strong> is set to <strong>While Using the App</strong> with Precise Location on.
+          </li>
+          <li>
+            In Safari, tap <strong>aA</strong> in the address bar → <strong>Website Settings</strong> → <strong>Location</strong> → <strong>Allow</strong>.
+          </li>
+          <li>Come back here and tap Try again.</li>
+        </ol>
+        <p className="text-xs text-white/60">Android or Chrome: tap the icon left of the address → Permissions → Location → Allow.</p>
+        <button type="button" onClick={onStart} className="press self-start min-h-11 px-4 rounded-md bg-pitch text-pitch-ink font-bold">
+          Try again
+        </button>
+      </div>
+    );
+  return (
+    <div className={box}>
+      <div className="font-semibold">Yardages need your location</div>
+      <p className="text-sm text-white/80">Your phone asks once. Location is only used on this screen, never stored.</p>
+      <button type="button" onClick={onStart} className="press self-start min-h-12 px-5 rounded-md bg-pitch text-pitch-ink font-bold text-base">
+        Turn on GPS
+      </button>
     </div>
   );
 }

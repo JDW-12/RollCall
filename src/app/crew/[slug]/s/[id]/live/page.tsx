@@ -34,7 +34,13 @@ export default async function LivePage({ params }: { params: Promise<{ slug: str
       handicap={card.handicaps[user.id] ?? 0}
       geo={geo?.status === "ok" ? geo.holes : null}
       center={geo?.center ?? null}
-      mapKey={process.env.MAPTILER_KEY ?? null}
+      mapKey={mapKey()}
     />
   );
+}
+
+/** The MapTiler key, under whichever name it was saved as in the hosting settings. */
+function mapKey(): string | null {
+  const k = process.env.MAPTILER_KEY ?? process.env.NEXT_PUBLIC_MAPTILER_KEY ?? process.env.MAPTILER_API_KEY ?? process.env.MAP_TILER_KEY;
+  return k?.trim() || null;
 }
