@@ -24,6 +24,8 @@ type Props = {
   whyNoMap?: string | null;
   /** Organisers: re-run the course lookup now. */
   retryHref?: string | null;
+  /** Organisers, when there's no map key: what the server could see. */
+  mapHelp?: string | null;
 };
 
 type Fix = { at: LatLon; accuracy: number } | null;
@@ -33,7 +35,7 @@ type Fix = { at: LatLon; accuracy: number } | null;
  * you walk, the satellite map shows the hole, and the score for each hole is saved as you go so the
  * card is done when you walk off the 18th. The page keeps the screen awake while it's open.
  */
-export function LiveRound({ sessionId, backHref, courseName, holes, strokes: initial, handicap, geo, center, mapKey, whyNoMap = null, retryHref = null }: Props) {
+export function LiveRound({ sessionId, backHref, courseName, holes, strokes: initial, handicap, geo, center, mapKey, whyNoMap = null, retryHref = null, mapHelp = null }: Props) {
   const [strokes, setStrokes] = useState<(number | null)[]>(() => holes.map((_, i) => initial[i] ?? null));
   const firstOpen = strokes.findIndex((s) => s === null);
   const [idx, setIdx] = useState(firstOpen === -1 ? 0 : firstOpen);
@@ -167,7 +169,10 @@ export function LiveRound({ sessionId, backHref, courseName, holes, strokes: ini
         {mapKey ? (
           <HoleMap mapKey={mapKey} hole={hg} center={center} me={fix?.at ?? null} target={target} onTarget={setTarget} />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-white/70">Satellite map isn&apos;t switched on yet. Distances below still work.</div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-white/70">
+            <span>Satellite map isn&apos;t switched on yet. Distances below still work.</span>
+            {mapHelp ? <span className="font-mono text-[11px] text-white/50 max-w-[34ch]">{mapHelp}</span> : null}
+          </div>
         )}
         {/* The numbers that matter, over the map. */}
         <div className="absolute left-2 right-2 top-2 grid grid-cols-3 gap-1.5 pointer-events-none" aria-live="polite">

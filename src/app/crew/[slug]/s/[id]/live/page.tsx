@@ -46,6 +46,13 @@ export default async function LivePage({ params, searchParams }: { params: Promi
       geo={geo?.status === "ok" ? geo.holes : null}
       center={geo?.center ?? null}
       mapKey={mapKey()}
+      mapHelp={
+        // Organisers only, names only (never values): which map-ish settings this deployment can see,
+        // so a key saved under another name, environment or project is obvious.
+        isOrganiser && !mapKey()
+          ? `Looked for MAPTILER_KEY on this deployment (${process.env.VERCEL_ENV ?? "local"}). Settings it can see with "map" in the name: ${Object.keys(process.env).filter((k) => /map|tiler/i.test(k)).join(", ") || "none"}.`
+          : null
+      }
       whyNoMap={whyNoMap}
       retryHref={isOrganiser && card.course?.id && geo?.status !== "ok" ? `/crew/${slug}/s/${id}/live?refresh=1` : null}
     />
