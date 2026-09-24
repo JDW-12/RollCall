@@ -91,6 +91,7 @@ e2e/            Playwright
 - [Business plan](docs/business-plan.md), [London go-to-market](docs/go-to-market-london.md), [Metrics](docs/metrics.md)
 - [Legal and compliance](docs/legal-and-compliance.md) (not legal advice)
 - [Roadmap](docs/roadmap.md)
+- [To do](docs/todo.md)
 
 ## What v1 deliberately does not do
 
