@@ -33,7 +33,7 @@ export default async function LivePage({ params, searchParams }: { params: Promi
       : !card.course?.id
         ? "this round's card isn't linked to the course library, so hole positions aren't known. Re-pick the course from the search to link it."
         : geo?.status === "none" && geo.reason === "no-holes"
-          ? `${name}'s holes aren't on OpenStreetMap yet${geo.found?.greens ? ` (${geo.found.greens} greens are)` : ""}. Tap the green on the map to measure.`
+          ? `${name}'s holes aren't on OpenStreetMap yet${geo.found?.greens ? ` (only ${geo.found.greens === 1 ? "1 green is" : `${geo.found.greens} greens are`})` : ""}. Tap the green on the map to measure.`
           : `couldn't place ${name} on the map just now.`;
   return (
     <LiveRound
